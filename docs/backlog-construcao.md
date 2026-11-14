@@ -583,11 +583,129 @@ candidato. É o próximo item do tema "rota vertical" (com o 11).
 `fell 6,8 m and took 18 fall damage`. A verificação geométrica pós-run achou **984/985** justamente por causa dela. É o
 próximo alvo do tema vertical.
 
-### 19. O early check planta poste de emergência **sem** dar chance ao `PullSupportBehind`
-Medido em 13/11/2026: **19 dos 20** postes de emergência saíram do early check (`Goto`, `MHR_Build.cs:6253`), que
-chama `TryFallbackPost` sem passar pela recusa `no_support` e portanto sem nunca tentar `PullSupports`/
-**Correção proposta:** no early check, tentar a puxada (frente e atrás) antes do poste, exatamente como `Advance` faz
-na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5` no mesmo run solo.
+### 19. O early check planta poste de emergência **sem** dar chance ao `PullSupportBehind` — *diagnóstico de 13/11/2026 **refutado** pela medição do run de confirmação*
+
+**O diagnóstico original estava errado e a premissa não existe mais no código.** O `Goto` (`MHR_Build.cs:6485-6518`)
+**já** chama, nesta ordem, `PullSupports` → `PullSupportBehind` → `PullDirectSupport` e **só então** `TryFallbackPost`.
+O `PullSupportBehind` entrou no próprio ciclo do piso (`0d26a80`), então o item descreve um código que não existe mais.
+
+**O run de confirmação de 13/11/2026 (985/985, 1 companheiro) mediu os 23 postes um a um, e nenhum deles era falta de
+puxada:**
+
+| pergunta | resposta medida |
+|---|---|
+| foram plantados pelo early check? | **23 de 23** (o `next:` do passo aparece imediatamente antes) |
+| havia apoio do plano **já de pé** na faixa que o poste preenche (0,4-1,0 m abaixo, ≤2,5 m em XZ)? | **22 de 23** |
+| havia peça do plano **ainda não colocada** nessa faixa (logo, algo a puxar)? | **1 de 23**, e era um `piece_chest_wood` (mobília, nunca apoio) |
+| a peça ficou de pé logo depois do poste? | **23 de 23** |
+
+Ou seja: a puxada não era a saída, porque **não havia nada para puxar**. O `no_support` vinha de `BuildProbe.
+FootprintSupported` (`AI/BuildProbe.cs:686`) — a teste é "algum colisor dentro da **pegada** da peça carrega?", com a
+pegada crescida 0,15 m. No caso do piso 298 (linha 1064 do log, `wood_floor` em `(-153,2, 40,8, -419,6)`): as vigas
+que o seguram (`wood_beam` em y local 0,0, topo em 1,0) estão de pé desde as linhas 804/810/813, mas as **mais próximas
+ficam a 0,97 m do centro** — fora da pegada de um piso 2×2. As meias-paredes em y local 0,5 (topo exatamente no plano do
+piso) ficam a 2,1-2,4 m. O piso é recusado por um vazio de colisão que o **jogo** aceita: logo depois o poste é
+plantado e a mesma peça entra na primeira tentativa.
+
+**O que isso custa:** 23 peças que não estão no `.blueprint` numa casa de 985 (2,3 %), e a verificação geométrica
+pós-run tem de descontá-las para casar o sítio com o plano (`1008 = 985 + 23`). Numa estrutura de 18 mil peças a mesma
+taxa seriam ~420 postes — por isso o item vale corrigir antes de rodar o cathedral.
+
+**Correção proposta (medida, não implementada):** a pegada do teste de apoio é a caixa do **prefab**, mas o jogo lê o
+apoio pela `WearNTear` da peça sob o centro e pelas bordas até 2,5 m (é o que `BuildSupportBelow.IsDirectSupport` já
+modela para a puxada). Duas saídas, ambas prováveis no harness:
+
+1. **Barata:** em `FootprintSupported`, quando a pegada não acha nada, repetir a varredura com a meia-largura crescida
+   até `BuildSupportBelow.MaxFlat` antes de responder `no_support` — o mesmo alcance que a puxada já usa, para que as
+   duas regras não discordem.
+2. **Estrutural:** a decisão vira tabela pura (`BuildSupportBelow.HoldsWithin`) que recebe a lista de candidatos com
+   (dx, dz, drop, carrega?) e responde o veredito; o `BuildProbe` só coleta. É a forma que o harness consegue travar.
+
+Aceite: `apoio de emergência < 5` no mesmo run solo **e** `build.pieces == 985` (sem peças fora do plano).
+
+#### 19.2 O run de validação parou em **190/985**: o companheiro fechou o piso **sobre a própria cabeça** — *corrigido em 13/11/2026*
+
+O run que ia validar 19.1 parou em 190 peças, e o defeito não tem relação com o poste. Lido do
+`BepInEx\LogOutput.log` (985 peças no plano, 1 worker):
+
+| linha | o que diz |
+|---|---|
+| 651 | `done: wood_floor at (-147,8, 39,8, -430,1)` — peça 173 |
+| 655–676 | peças 174–178, mais cinco `wood_floor`, todas em **39,8** |
+| 678 | `next: wood_floor (179/985) a 16,3 m` |
+| 661 | `[Move|Build] the way is blocked - trying another one at (-146,9, 38,8, -426,8)` |
+| 663–740 | 35 × `no progress ... route full`, walk spots todos em 39,8/39,9 |
+| 858 | `[Move|Follow] trapped at (-147,7, 38,8, -429,5) for 90s with no way out` |
+
+**A casa é que permite o defeito:** o térreo fica em 38,8, o deque em 39,8 e um `wood_wall_half` em 39,3 fecha o vão — **1 m
+de pé-direito**. O companheiro andou pela XZ de cada peça com os pés em 38,8, colocou seis pisos por cima de si e o sexto
+selou o crawlspace. Depois disso não havia rota para lugar nenhum.
+
+**Duas causas, as duas medidas:**
+
+1. **O `WalkSpot` nunca rodou para essas peças.** O portão era `state.Pos.y > me.y + 1f`; a peça está em 39,8 e os pés em
+   38,8, então `39,8 > 39,8` é **falso** — o companheiro andava direto para a XZ da peça (o chão sob o deque). Agora o
+   portão é `> me.y + 0,01f`.
+2. **A colocação não via que a peça era uma tampa.** O `inReach` é a regra do olho do jogo e está **certa** (piso 1 m
+   acima, 2 m de lado, está no alcance). O que faltava era a consequência: `CheckPoint` recebe o `CompanionSetup` como
+   `ignore`, então o corpo do próprio companheiro **nunca recusa a própria peça** — exceção que existe para o piso que se
+   pisa e que se estendeu ao piso que cai na cabeça. Nova tabela pura `BuildOverhead.LandsOnHead`: o corpo está sob a
+   peça (caixa + raio da cápsula) **e** a peça começa acima dos pés **e** abaixo de `Headroom = 1,8 m` → é tampa;
+   o companheiro **anda** em vez de colocar, e o `WalkSpot` (já corrigido) o leva para cima do deque.
+
+Também mudou a escolha do walk spot: o primeiro passe pegava a superfície **mais perto do companheiro**, e o chão do
+crawlspace (aos pés) vencia o deque a 4 m. Agora o primeiro critério é o **nível da peça** — a superfície de onde se
+constrói *naquele* nível é a daquele nível, não a mais perto dos pés — e a distância só desempata entre superfícies do
+mesmo nível.
+
+Harness: seção (x) ganhou 3 casos (deque vence o chão; desempate por distância no mesmo nível; fronteira de 2,5 m) e a
+seção nova (an) tem 9. **1145 PASS / 0 FAIL**, build 0/0, MCP 135/0, config doc em dia.
+
+Aceite do run solo (o mesmo de 19.1, mais as duas linhas novas):
+
+| métrica | antes (13/11) | alvo |
+|---|---|---|
+| `done` | 190 (travou, cancelado) | **985** |
+| `trapped ... no way out` | 1 | **0** |
+| `no progress` | 35 | **< 6** |
+| `desistindo de` | 1 | **0** |
+| `apoio de emergência` | 0 | **< 5** |
+
+---
+
+#### 19.1 A causa real: o poste saía **sem espera nenhuma** — *corrigido em 13/11/2026, aguardando o run de validação*
+
+A hipótese 1 acima **não fecha as contas**: medido o log do run, o apoio já de pé de cada um dos 17 pisos citados está a
+**0,81-1,02 m do centro** — *dentro* da pegada de um piso 2×2 (a caixa vai a 1,15 m do centro, mais os 0,15 m do jogo),
+não fora dela. Então `FootprintSupported` deveria ter achado o apoio, e a hipótese da "pegada estreita" não explica a
+recusa. O que explica está no **tempo**:
+
+| medido no log | valor |
+|---|---|
+| linha `next: wood_floor (298/985)` | 1064 |
+| linha do poste sob ela | **1065** (a linha seguinte) |
+| linha `placed` | 1066 |
+| `sem apoio ainda` (o adiamento que gasta ~20 s) antes do poste | **nenhum** |
+| total de adiamentos no run inteiro | **2** (os dois pisos que *não* ganharam poste, e por não haver vão) |
+
+`TryFallbackPost` (`MHR_Build.cs:5691`) guardava o poste com `if (support >= 0 && !FallbackPostAllowed(...))`. O `&&`
+**curto-circuita**: quando `DirectSupportIndex` devolve `-1` a guarda inteira é pulada e o poste é plantado **na primeira
+recusa**. E `-1` é justamente o caso "todos os apoios da janela já estão de pé" — a puxada não tem o que puxar e a espera
+some junto. Não havia, em nenhum caminho, os ~20 s que `SupportGrace` promete.
+
+**A correção** (`BuildSupportBelow.FallbackPostAllowed` de 5 parâmetros + `MHR_Build.StandingSupportClose`): quando
+`DirectSupportIndex` é `-1`, o `MHR_Build` varre o plano atrás de um apoio **já de pé** ao alcance do colisor do jogo
+(`BuildSupportBelow.SupportClose = 1,3 m`). Se existe, o poste espera as mesmas 3 olhadas (~20 s) em vez de sair na
+primeira — porque um apoio de pé **ao alcance do jogo** prova que a recusa não é "não há nada embaixo". Apoio de pé
+**longe** (ou varredura que não rodou: `null`) mantém a janela antiga exata. Harness seção (u): 5 casos novos, 1133 PASS.
+
+**Nota registrada, fora desta correção:** a sonda `build.check` mediu, nos mesmos pontos, que o jogo **aceita** esses
+pisos hoje (`ok=true`, sem `no_support`) com o sítio já construído — ou seja, o `no_support` daquele instante era, muito
+provavelmente, o colisor do vizinho que ainda não existia naquele frame (a peça ao lado é colocada no mesmo momento), e
+voltar depois resolvia. Isso é outro item (a sonda não reconstrói o instante); fica registrado com o número.
+
+Aceite: `apoio de emergência < 5` no mesmo run solo **e** `build.pieces == 985` (sem peças fora do plano).
+
 
 
 

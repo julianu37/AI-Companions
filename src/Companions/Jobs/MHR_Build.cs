@@ -5489,6 +5489,57 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 13/11/2026 (the solo run of <c>CommHomeBasicBP</c>, 23 emergency posts that needed <b>no wait</b>): is a piece of the
+	/// plan that <b>already stands</b> close enough to the refused one that the game can read it as its support? True means
+	/// "the support is there" - <c>no_support</c> at that pose is about something else, and the post would be a guess paid
+	/// in wood (<see cref="BuildSupportBelow.FallbackPostAllowed"/>).
+	///
+	/// <para>The reach is <see cref="BuildSupportBelow.SupportClose"/>: the same window <see cref="DirectSupportIndex"/>
+	/// asks (0,4-2,5 m below, 2,5 m in XZ) narrowed to the distance the game's collider overlap can hold a piece at. The
+	/// measurement of that run: all 17 floors that got a post had their plan support standing at 0,81-1,02 m of the centre
+	/// - inside the reach - and the house needed <b>zero</b> posts to stand (23 planted, 985 of 985 placed).</para>
+	///
+	/// <para>Null when the question cannot be asked (no plan, or a state that is not on a step): the caller then keeps the
+	/// old behaviour.</para>
+	/// </summary>
+	private static bool? StandingSupportClose(State state)
+	{
+		if (state == null || state.Plan == null || state.Plan.Count == 0 || state.Pos == Vector3.zero)
+		{
+			return null;
+		}
+		int ownClass = BuildBlueprintParser.ClassOf(state.Prefab);
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || step.Prefab == null || !BuildPieceKind.IsStructural(step.Prefab))
+			{
+				continue;
+			}
+			if (!BuildSupportBelow.CanSupport(ownClass, BuildBlueprintParser.ClassOf(step.Prefab)))
+			{
+				continue;
+			}
+			if (!Standing(state, PieceIdentity(state, i)))
+			{
+				continue;   // only a piece that already STANDS is evidence of anything
+			}
+			float dx = step.Pos.x - state.Pos.x;
+			float dz = step.Pos.z - state.Pos.z;
+			float drop = state.Pos.y - step.Pos.y;
+			if (drop < BuildSupportBelow.MinDrop || drop > BuildSupportBelow.MaxDrop)
+			{
+				continue;
+			}
+			if (dx * dx + dz * dz <= BuildSupportBelow.SupportClose * BuildSupportBelow.SupportClose)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
 	/// 12/11/2026 (the solo run: the same piece twice in the plan): the index a plan position is <b>known by</b> in the
 	/// placed/skipped sets. A crew walks one plan and appends nothing, so the position is the index. A single worker's retry
 	/// pass appends the <b>same step object</b> again (<see cref="Advance"/>), and every count and every skip is recorded
@@ -5688,11 +5739,22 @@ internal static class MHR_Build
 		// 11/11/2026 (the Run 9: the plan's support was there but NOT in the world): a support of the plan only blocks the
 		// post while it is really coming. Given up (skipped) it never will; claimed by a companion it is on its way; and a
 		// piece that already waited SupportGrace deferrals for it (8 s + 12 s) has given the plan its chance.
+		//
+		// 13/11/2026 (the solo run of CommHomeBasicBP, 23 posts measured with NO wait: next:, post, placed on consecutive
+		// lines): when DirectSupportIndex answers -1 (NOTHING under it in the plan that is still to be built - it is -1
+		// exactly when every candidate is already standing) the old `support >= 0 &&` short-circuit skipped the whole guard
+		// and the post went up on the FIRST refusal. A support standing within the game's own collider reach is proof that
+		// the refusal is not "nothing under it", and there the post is a guess paid in wood - it waits the same three looks.
 		int support = DirectSupportIndex(state);
-		if (support >= 0
-			&& !BuildSupportBelow.FallbackPostAllowed(SupportGivenUp(state, support), SupportClaimed(state, support),
-				SupportDeferrals(state)))
+		bool? supportClose = support < 0 ? StandingSupportClose(state) : (bool?)null;
+		if (!BuildSupportBelow.FallbackPostAllowed(support >= 0, support >= 0 && SupportClaimed(state, support),
+				SupportDeferrals(state), support >= 0, supportClose))
 		{
+			if (supportClose == true)
+			{
+				LogDebug(ai, "sem poste sob " + state.Prefab + " em " + Pose(state.Pos)
+					+ ": o apoio do plano ja esta de pe ao alcance do jogo - a recusa nao e falta de apoio");
+			}
 			return false;   // the plan has something under it and it is coming: the pull is the path (never a post over it)
 		}
 		// where the post stands: the surface under the piece's own point - the ground, the floor of the storey below, a beam
@@ -6550,7 +6612,12 @@ internal static class MHR_Build
 		// far from the feet and walked the WRONG way (no progress after 12 s at 22,8 m, then 23,5 m). The walk goes to a
 		// SURFACE the piece can be reached from (the plan's own floor/roof row below it), chosen once per piece; state.Pos
 		// stays the PIECE for the placement checks, the falls and the claims - only the walk's target changes.
-		if (ReachWalk && state.Pos.y > me.y + 1f)
+		// 13/11/2026 (the solo run of the CommHomeBasicBP): the gate was `state.Pos.y > me.y + 1f` and the measured house
+		// has its deck <b>exactly 1,0 m</b> above the ground floor (38,8 -> 39,8, a wood_wall_half at 39,3 filling the
+		// gap). 39,8 > 39,8 is false, so the surface search was never even run for the six floors that sealed the
+		// companion in, and the walk stayed at the piece's own XZ - the ground under the deck. A piece AT the feet needs no
+		// walk spot (the eye rule covers it, still true here at exactly 0 m); anything above them does.
+		if (ReachWalk && state.Pos.y > me.y + 0.01f)
 		{
 			if (state.WalkFor != state.Index)
 			{
@@ -6640,7 +6707,13 @@ internal static class MHR_Build
 		{
 			inReach = true;
 		}
-		if (inReach)
+		// 13/11/2026 (the solo run of the CommHomeBasicBP): being in reach is not enough when the piece would close a lid
+		// over the body - the eye rule covers a floor 1 m above the feet and 2 m away, and the measured run placed six of
+		// them through its own chest (pieces 173-178) until the crawlspace was sealed and it could not move again. It
+		// walks instead: the walk spot of a piece above the feet is a surface of its own level (BuildWalkSpot), so the
+		// step is up onto the deck and the next frame places the floor from the storey it belongs to. Measured with the
+		// piece AT the feet or beside the body it is not a lid and nothing changes.
+		if (inReach && !OverheadBlocked(ai, state))
 		{
 			ai.StopMoving();
 			MHR_Mover.Release(ai);
@@ -7640,6 +7713,50 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		goal = point;
 		return true;
+	}
+
+	/// <summary>
+	/// 13/11/2026 (the solo run of the <c>CommHomeBasicBP</c>): <b>would this piece close a lid over the companion's own
+	/// head?</b> The placing companion is the <c>ignore</c> of <see cref="BuildProbe.CheckPoint"/>, so its body never
+	/// refuses its own piece - the exception exists for the tile at its feet and it let it build the deck <b>through its
+	/// own chest</b>. Measured: pieces 173-178, six <c>wood_floor</c> at 39,8 with the feet at 38,8, 0,6 to 2,5 m away;
+	/// the sixth closed the crawlspace and the run ended in <c>trapped ... for 90 s with no way out</c>.
+	///
+	/// <para>The test is the body's capsule against the piece's box at the pose - the same box
+	/// <see cref="AsideSpot"/> and <see cref="BuildProbe.BlockedByCharacter"/> build (the prefab's bounds, its centre moved
+	/// by the pivot and the pose, the vertical span as the AABB of the rotated box) - with the rule of
+	/// <see cref="BuildOverhead.LandsOnHead"/>: beside the piece is free, at the feet is the floor being stood on, over
+	/// the head is a ceiling; only the lid in between is refused. False when the body or the box cannot be read (nothing
+	/// measured, nothing refused).</para>
+	/// </summary>
+	private static bool OverheadBlocked(CompanionAI ai, State state)
+	{
+		if (ai == null || state == null || state.Piece == null)
+		{
+			return false;
+		}
+		Character body = ai.GetComponent<Character>();
+		if (body == null || !BuildProbe.CapsuleOf(body, out Vector3 axis, out float capBottom, out float capTop, out float capRadius))
+		{
+			return false;
+		}
+		Bounds box;
+		if (!BuildProbe.BoxOf(state.Piece, out box))
+		{
+			return false;
+		}
+		Vector3 localCenter = box.center - state.Piece.transform.position;
+		Vector3 center = state.Pos + state.Rot * localCenter;
+		float halfX = box.extents.x;
+		float halfZ = box.extents.z;
+		float halfY = BuildBody.HalfY(halfX, box.extents.y, halfZ, (state.Rot * Vector3.right).y,
+			(state.Rot * Vector3.up).y, (state.Rot * Vector3.forward).y);
+		float pieceBottom = center.y - halfY;
+		float pieceTop = center.y + halfY;
+		// the same frame the body window uses: the piece's own yaw taken out of the capsule's offset
+		Vector3 local = Quaternion.Inverse(state.Rot) * (axis - center);
+		return BuildOverhead.LandsOnHead(local.x, local.z, halfX, halfZ, pieceBottom, pieceTop, capBottom, capTop,
+			capRadius, BuildOverhead.Headroom);
 	}
 
 	/// <summary>11/11/2026 (Run 14): are the three coordinates real numbers? (a pose read from a ray or from the plan that

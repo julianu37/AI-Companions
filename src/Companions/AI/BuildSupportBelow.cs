@@ -226,18 +226,62 @@ internal static class BuildSupportBelow
 	/// ~20 s after the first refusal - long enough for a worker to walk to the support and place it.</para>
 	///
 	/// <para>Pure on purpose (three numbers): the harness asserts the table (section (u)).</para>
+	///
+	/// <para>13/11/2026 (the solo run of <c>CommHomeBasicBP</c>, 985 pieces, 23 emergency posts measured): does something the game
+	/// reads as a support already <b>stand</b> close enough that a refusal by <c>no_support</c> cannot be about a support
+	/// that is missing? This is the guard the post was missing.
+	///
+	/// <para><b>What was measured</b> (<c>docs/backlog-construcao.md</c> item 19): the 23 posts of that run were planted
+	/// with <b>no wait at all</b> - <c>next:</c>, the post, <c>placed</c>, on consecutive log lines. The reach the game has
+	/// is <b>0,15 m of collider overlap</b> (<c>WearNTear.SetupColliders</c>), which is what <c>BuildProbe.FootprintSupported</c>
+	/// already grows the piece's box by - so the probe's own verdict cannot reach 2,5 m (2 × 2 floor box + 0,15 = 2,3 m of
+	/// reach in the best case, and the support of this house sits at 0,9-1,0 m of its centre, <b>inside</b> that box), and a
+	/// <c>no_support</c> can come from a collider that is <b>not there yet</b> (the piece is placed in the same frame the
+	/// neighbour is, and the overlap is asked before it exists).
+	/// With the support standing where the plan puts it, the post is <b>guessed</b>, not measured: the piece's own failure
+	/// has another cause and planting a post neither fixes it nor is it cheap (a post is not in the plan - 23 of them are 23
+	/// pieces of wood a player did not ask for, and this house needed <b>none</b> to stand).</para>
+	///
+	/// <para><b>The rule</b> (pure, asserted in harness section (u)): a support the plan <b>has</b> keeps the old
+	/// <see cref="FallbackPostAllowed"/> window (given up / nobody holds it / <see cref="SupportGrace"/> deferrals). With
+	/// <b>no</b> support in the plan's window (<paramref name="planSupportFound"/> false - every candidate already standing,
+	/// or none ever planned) the post waits the <b>same</b> three looks: a support standing at
+	/// <paramref name="supportClose"/> truly cannot carry it (the game's own <c>WearNTear</c> says so at placement, and the
+	/// post is then the way up), and a support standing further away is <b>not</b> evidence that nothing can - the box test
+	/// reaches 4 m, so the piece gets the same ~20 s before the post is planted on a guess.</para>
 	/// </summary>
-	internal static bool FallbackPostAllowed(bool supportGivenUp, bool supportClaimed, int supportDeferrals)
+	internal static bool FallbackPostAllowed(bool supportGivenUp, bool supportClaimed, int supportDeferrals, bool planSupportFound, bool? supportClose)
 	{
 		if (supportGivenUp)
 		{
 			return true;   // the plan's support is out of the site for good: the post is the only way up
 		}
-		if (supportClaimed)
+		if (planSupportFound)
 		{
-			return false;   // somebody is building it right now - the piece waits for it
+			if (supportClaimed)
+			{
+				return false;   // somebody is building it right now - the piece waits for it
+			}
+			return supportDeferrals >= SupportGrace;
 		}
-		return supportDeferrals >= SupportGrace;
+		// no support in the plan's window: a standing one close enough to be read by the game's collider overlap is proof
+		// that the refusal is not "nothing under it" - the post does not fix a piece the game really refuses, it only pays
+		// for wood nobody asked for. A standing one further away, or a scan that did not run (null - a caller without the
+		// world in hand keeps the old behaviour), is no proof either way: same window as the plan's own.
+		return supportClose != true && supportDeferrals >= SupportGrace;
+	}
+
+	/// <summary>How far from a piece's centre a support the game can read may be: the reach of the collider overlap for
+	/// the widest piece of the plans (a 2 × 2 floor is 1,15 m from its centre to a corner, plus the 0,15 m the game grows
+	/// each box by). A support inside it stands where <c>WearNTear</c> can hold the piece, so a refusal there is <b>not</b>
+	/// an absent support (<see cref="FallbackPostAllowed"/>).</summary>
+	internal const float SupportClose = 1.3f;
+
+	/// <summary>The three-number form: no scan of the world was made (<see cref="FallbackPostAllowed(bool,bool,int,bool,bool?)"/>
+	/// with <c>supportClose = null</c>), which is exactly the behaviour every caller had before 13/11/2026.</summary>
+	internal static bool FallbackPostAllowed(bool supportGivenUp, bool supportClaimed, int supportDeferrals)
+	{
+		return FallbackPostAllowed(supportGivenUp, supportClaimed, supportDeferrals, true, null);
 	}
 
 	/// <summary>How many times a piece has to be deferred by <b>dependency</b> before the plan's own support counts as "not

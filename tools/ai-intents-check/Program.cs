@@ -140,6 +140,7 @@ internal static class Program
 		new SectionDef("ak", "LandingFloors/SettledPieces - o piso so sobe com apoio de pe (e o solo ve o que o grupo ve)", LandingsAndSettled),
 		new SectionDef("al", "BuildOverweight - o companheiro sobrecarregado descarrega e continua a obra", OverweightUnloads),
 		new SectionDef("am", "BuildRecovery - a peca dada por perdida volta na escada (outras pecas, fim do andar, fim da obra)", BuildRecoveries),
+		new SectionDef("an", "BuildOverhead - a peca que fecha a tampa sobre a cabeca do proprio companheiro", OverheadLids),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -1420,6 +1421,28 @@ internal static class Program
 		FallbackCase(false, false, 2, true, "2 esperas (~20 s): o apoio do plano nao veio - o poste assume");
 		Check("SupportGrace == 2 (o terceiro olhar, ~20 s = 8 + 12 s)", BuildSupportBelow.SupportGrace == 2,
 			"obtido " + BuildSupportBelow.SupportGrace);
+		// 13/11/2026 (the solo run of CommHomeBasicBP, 23 posts planted with NO wait): the plan's window had nothing still
+		// to be built (DirectSupportIndex = -1) and the guard was skipped by `support >= 0 &&` - the post went up on the
+		// first refusal. A plan support STANDING within the game's collider reach is proof the refusal is not "nothing
+		// under it": the post waits, exactly as if the plan still owed it.
+		FallbackNoPlanCase(null, 0, false, "sem varredura (null): comportamento antigo - espera as 3 olhadas");
+		FallbackNoPlanCase(true, 0, false, "apoio de pe ao alcance do jogo, 0 esperas: NAO planta (a recusa nao e falta de apoio)");
+		FallbackNoPlanCase(true, 2, false, "apoio de pe ao alcance, 2 esperas: continua NAO plantando");
+		FallbackNoPlanCase(false, 0, false, "apoio de pe longe, 0 esperas: ainda nao (o plano teve a chance)");
+		FallbackNoPlanCase(false, 2, true, "apoio de pe longe, 2 esperas: o poste assume (o de pe nao alcanca)");
+		Check("SupportClose == 1,3 m (2x2 floor: 1,15 m do centro ao canto + 0,15 m do jogo)",
+			Math.Abs(BuildSupportBelow.SupportClose - 1.3f) < 0.001f, "obtido " + BuildSupportBelow.SupportClose);
+	}
+
+	/// <summary>Section (u), 13/11/2026: the post when the plan's window has <b>no</b> support still to be built
+	/// (<c>DirectSupportIndex</c> = -1) but one is <b>standing</b> near the piece.</summary>
+	private static void FallbackNoPlanCase(bool? supportClose, int deferrals, bool expected, string why)
+	{
+		bool actual = BuildSupportBelow.FallbackPostAllowed(false, false, deferrals, false, supportClose);
+		Check("FallbackPostAllowed(sem apoio no plano, de pe="
+			+ (supportClose.HasValue ? (supportClose.Value ? "ao alcance" : "longe") : "nao varrido")
+			+ ", esperas=" + deferrals + ") -> " + (expected ? "true" : "false") + " (" + why + ")",
+			actual == expected, "obtido " + (actual ? "true" : "false"));
 	}
 
 	/// <summary>Section (u): one question about the plan's own support and the post that may take over from it.</summary>
@@ -1622,6 +1645,25 @@ internal static class Program
 				new UnityEngine.Vector3(0f, 8f, 0f)      // the one under the piece
 			}, true, new UnityEngine.Vector3(0f, 8f, 0f));
 
+		// 2b) 13/11/2026 (the solo run, measured): the deck 1 m under the piece BEATS the ground 7 m under it, even
+		// though the ground is the surface at the companion's own feet. The old rule took the closest to the companion,
+		// so the six floors at 39,8 were placed from the crawlspace at 38,8 and the sixth sealed it.
+		WalkCase("o deque 1 m abaixo vence o chao 7 m abaixo (o run de 13/11)", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 3f, 0f),     // the crawlspace under the deck: at the companion's feet
+				new UnityEngine.Vector3(5f, 9f, 0f)      // the deck itself: 1 m under the piece, 5 m away
+			}, true, new UnityEngine.Vector3(5f, 9f, 0f));
+
+		// 2c) two surfaces of the SAME level: the flat distance to the companion breaks it (the deck all around the piece
+		// is one storey, and the shortest walk on it wins)
+		WalkCase("mesmo nivel: o mais perto do companheiro desempata", me, piece, 10f,
+			new[]
+			{
+				new UnityEngine.Vector3(4f, 9f, 0f),
+				new UnityEngine.Vector3(1.5f, 9f, 0f)
+			}, true, new UnityEngine.Vector3(1.5f, 9f, 0f));
+
 		// 3) nothing of the piece's own storey: the highest floor the eye rule still covers
 		WalkCase("so chao dentro do olho: o mais alto ganha", new UnityEngine.Vector3(0f, 0f, 0f), piece, 10f,
 			new[]
@@ -1646,14 +1688,26 @@ internal static class Program
 				new UnityEngine.Vector3(1f, 8f, 0f)         // 2 m below, farther from the companion
 			}, true, new UnityEngine.Vector3(0.2f, 10.5f, 0f));
 
-		// 6) the 2,5 m end of the same storey is INCLUSIVE: exactly 2,5 m below still counts (and wins over a 2 m one that
-		// is farther), which is what keeps the row under a 2 m wall
-		WalkCase("fronteira de 2,5 m e inclusiva", me, piece, 10f,
+		// 6) the 2,5 m end of the same storey is INCLUSIVE: exactly 2,5 m below still counts. It used to WIN here (it was
+		// at the companion's feet), but since 13/11/2026 the level of the surface comes before the walk: the 2 m below is
+		// closer to the piece, so it wins. The 2,5 m end is asserted by it being a candidate at all - with a 2,4 m rule it
+		// would have only one surface (the 2 m one) and the case is about the inclusive end, so it is checked apart.
+		WalkCase("fronteira de 2,5 m e inclusiva (mas o nivel decide)", me, piece, 10f,
 			new[]
 			{
 				new UnityEngine.Vector3(0.1f, 7.5f, 0f),   // exactly 2,5 m below, at the companion's feet
-				new UnityEngine.Vector3(2f, 8f, 0f)        // 2 m below, 2 m away
-			}, true, new UnityEngine.Vector3(0.1f, 7.5f, 0f));
+				new UnityEngine.Vector3(2f, 8f, 0f)        // 2 m below, 2 m away: closer to the piece, so it wins
+			}, true, new UnityEngine.Vector3(2f, 8f, 0f));
+
+		// 6b) the 2,5 m end alone: it is the ONLY same-storey surface, and it is reached (with a 2,4 m rule it would fall
+		// into the second pass, where the highest surface wins - the case is about the inclusive end of the window, and
+		// the piece 2,5 m above it is out of the eye rule at 5 m, so false proves the window was the one that took it)
+		WalkCase("2,5 m abaixo sozinho: a fronteira inclusiva da 2a passada? nao, a 1a aceita",
+			new UnityEngine.Vector3(0f, 5f, 0f), new UnityEngine.Vector3(0f, 10f, 0f), 5f,
+			new[]
+			{
+				new UnityEngine.Vector3(0f, 7.5f, 0f)    // exactly 2,5 m below; eye at 9,0 -> 1,0 m from the piece
+			}, true, new UnityEngine.Vector3(0f, 7.5f, 0f));
 
 		// 7) a tie is decided by the coordinates, never by the order the surfaces were collected in: two surfaces 1 m to
 		// each side come back as the same point with the list reversed
@@ -1727,6 +1781,68 @@ internal static class Program
 	/// are the exact ring values (2,2 m and 2,2 x cos45) and the tolerance is a centimetre: the cases are about the rule,
 	/// not about float rounding.</para>
 	/// </summary>
+	private static void OverheadLids()
+	{
+		// The measured case (13/11/2026, the solo run of the CommHomeBasicBP): the companion's feet at 38,8, the capsule
+		// 38,8-40,6 (1,8 m body, the vanilla one), a 2x2 wood_floor whose box at the pose spans 39,8 +- 0,1 -> the piece
+		// starts exactly 1,0 m above the feet. Six of those were placed in a row (pieces 173-178) and the sixth sealed the
+		// crawlspace: "trapped at (-147,7, 38,8, -429,5) for 90 s with no way out".
+		const float feet = 38.8f;
+		const float bodyTop = 40.6f;
+		const float halfX = 1f;
+		const float halfZ = 1f;
+		const float radius = 0.3f;
+
+		// 1) the lid itself: 1,0 m of air for a 1,8 m body -> refused
+		Check("piso a 1,0 m acima dos pes, sobre a cabeca: e tampa (o run de 13/11)",
+			BuildOverhead.LandsOnHead(0f, 0f, halfX, halfZ, 39.7f, 39.9f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"1,0 m de vao para um corpo de 1,8 m tem de ser recusado");
+
+		// 2) the tile being STOOD ON: its bottom is at the feet -> not a lid (this is the case the placing companion's own
+		//    `ignore` exists for, and the one the fix must not break)
+		Check("piso com o fundo nos pes: NAO e tampa (o piso que se pisa)",
+			!BuildOverhead.LandsOnHead(0f, 0f, halfX, halfZ, feet, feet + 0.2f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"o fundo da peca nos pes nao cruza o corpo");
+
+		// 3) a real ceiling: the piece entirely above the head -> not a lid, it is walked under
+		Check("piso 2,2 m acima dos pes: NAO e tampa (e teto, passa por baixo)",
+			!BuildOverhead.LandsOnHead(0f, 0f, halfX, halfZ, 41f, 41.2f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"acima de 1,8 m nao ha tampa");
+
+		// 4) the same lid BESIDE the body: 3 m away in XZ on a 2x2 piece (half 1,0 + raio 0,3 = 1,3 m of reach) -> free
+		Check("o mesmo piso a 3,0 m de lado: NAO e tampa (o corpo esta ao lado)",
+			!BuildOverhead.LandsOnHead(3f, 0f, halfX, halfZ, 39.7f, 39.9f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"3,0 m > 1,0 + 0,3: a capsula nao esta sob a peca");
+
+		// 5) the exact edge: 1,29 m of the 1,3 m window is still under the piece, 1,31 m is not (the box grown by the
+		//    capsule's radius, the same window BuildBody.Blocks uses)
+		Check("1,29 m de lado ainda esta sob a peca",
+			BuildOverhead.LandsOnHead(1.29f, 0f, halfX, halfZ, 39.7f, 39.9f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"1,29 < 1,0 + 0,3");
+		Check("1,31 m de lado ja nao esta sob a peca",
+			!BuildOverhead.LandsOnHead(1.31f, 0f, halfX, halfZ, 39.7f, 39.9f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"1,31 > 1,0 + 0,3");
+
+		// 6) the boundary of the headroom: 1,8 m of air for a 1,8 m body is a ceiling, not a lid (the rule is "strictly
+		//    less than the body's height"); 1,7 m is still a lid
+		Check("1,8 m de vao (justo o corpo): NAO e tampa",
+			!BuildOverhead.LandsOnHead(0f, 0f, halfX, halfZ, feet + BuildOverhead.Headroom, feet + BuildOverhead.Headroom + 0.2f,
+				feet, bodyTop, radius, BuildOverhead.Headroom),
+			"o vao e estritamente menor que a altura do corpo");
+		Check("1,7 m de vao: ainda e tampa",
+			BuildOverhead.LandsOnHead(0f, 0f, halfX, halfZ, 40.5f, 40.7f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"1,7 < 1,8");
+
+		// 7) a TALL piece whose box starts at the feet but reaches over the head (a wall being placed where the companion
+		//    stands): its bottom is at the feet, so it is not a lid by this rule - the body window of the game already
+		//    handles the crossing, and refusing it here would forbid every wall the companion stands next to
+		Check("parede com o fundo nos pes: NAO e tampa (a janela do corpo ja trata)",
+			!BuildOverhead.LandsOnHead(0f, 0f, halfX, 0.1f, feet, feet + 2f, feet, bodyTop, radius, BuildOverhead.Headroom),
+			"o fundo nos pes e o caso do piso que se pisa");
+	}
+
+	/// <summary>Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has
+	/// to place a piece on its body (the step aside of <c>MHR_Build</c>).</summary>
 	private static void AsideSpots()
 	{
 		UnityEngine.Vector3 piece = new UnityEngine.Vector3(0f, 10f, 0f);
