@@ -184,24 +184,33 @@ internal static class BuildSupportBelow
 	/// P1 (04/11/2026, measured: 13 roof pieces stayed out for FIVE rounds and the emergency post was refused 318 times with
 	/// "vão de 0,16 m"): can a collider found inside the footprint of a piece of <paramref name="pieceClass"/> hold it?
 	///
-	/// <para>The terrain holds anything. A <b>roof</b> (class 3, which includes <c>wood_wall_roof_*</c>) is held by <b>any</b>
-	/// <see cref="WearNTear"/>, without asking for <c>m_supports</c>. <b>Correction (11/11/2026, measured in 1.0.20 -
-	/// <c>docs/re/support-rule-wearntear.md</c> §5):</b> the reason written here first - "a roof piece has
-	/// <c>m_supports = false</c>" - is <b>wrong</b>: <c>wood_roof</c>, <c>wood_roof_45</c>, <c>wood_roof_top</c>,
-	/// <c>wood_roof_top_45</c>, <c>wood_roof_icorner_45</c>, <c>wood_floor</c>, <c>wood_wall_half</c>,
-	/// <c>wood_stair</c>, <c>wood_stepladder</c>, <c>wood_pole2</c> and <c>wood_beam_1</c> are all
-	/// <c>m_supports = true</c>; only furniture (<c>piece_chest_wood</c>) is <c>false</c>. With both ends <c>true</c>
-	/// this bypass is a <b>no-op</b> for roof over roof (the behaviour never changed) and it was kept for safety. The
-	/// one end where it is <i>not</i> a no-op is the wrong one: a roof standing on <b>furniture</b> passes here (the
-	/// game would refuse it by the ghost hit). Every other class (floor, wall, beam, pole, stair, door) still needs a
-	/// piece that really carries (<paramref name="wearSupports"/>), otherwise a wall would stand on a chest.</para>
+	/// <para>The terrain holds anything. Every other piece needs a <see cref="WearNTear"/> that really
+	/// <b>carries</b> - <paramref name="wearSupports"/>, i.e. <c>m_supports</c> - whatever its class is (floor, wall,
+	/// roof, beam, pole, stair, door). A rock or a tree (no <see cref="WearNTear"/>) is not a support.</para>
+	///
+	/// <para><b>Why no class is exempt (measured, 14/11/2026: the player asked "por que cama como ancora?" over the two
+	/// roof holes of his screenshot):</b> this method used to have a bypass - <c>pieceClass == 3 || wearSupports</c>, every
+	/// roof accepted by <b>any</b> <see cref="WearNTear"/>, furniture included. The bypass was written (04/11/2026) on the
+	/// belief that "a roof piece has <c>m_supports = false</c>", and that belief was <b>already corrected</b> on 11/11/2026:
+	/// <c>wood_roof</c>, <c>wood_roof_45</c>, <c>wood_roof_top</c>, <c>wood_roof_top_45</c>, <c>wood_roof_icorner_45</c>,
+	/// <c>wood_floor</c>, <c>wood_wall_half</c>, <c>wood_stair</c>, <c>wood_stepladder</c>, <c>wood_pole2</c> and
+	/// <c>wood_beam_1</c> are all <c>m_supports = true</c>; <b>only furniture is <c>false</c></b>
+	/// (<c>docs/re/support-rule-wearntear.md</c> §5). With every structural prefab <c>true</c>, the bypass is a
+	/// <b>no-op</b> for roof over roof and for roof over a wall - and its only live effect was the <b>wrong</b> one: a roof
+	/// standing on a <b>chest</b> or a <b>bed</b> passed here, though the game never reads furniture as support
+	/// (<c>UpdateSupport</c> skips the collider on <c>!m_supports</c>, <c>WearNTear.cs:920-923</c>) and the vanilla ghost
+	/// refuses to build on it at all (<c>Player.cs:3890-3893</c>). A bed is not an anchor: it made the probe say "held"
+	/// where the game would have made the piece fall.</para>
 	///
 	/// <para>Sibling of <see cref="CanSupport"/> (the pull's rule): there a roof only holds a <b>roof</b>; here a roof is
-	/// only <b>held</b>, by anything with a <see cref="WearNTear"/>. Both agree that a door never holds and that a roof never
-	/// holds a floor.</para>
+	/// only <b>held</b>, and by the same rule as everything else - the piece below has to carry. Both agree that a door never
+	/// holds and that a roof never holds a floor.</para>
 	/// </summary>
 	internal static bool HoldsPlacedPiece(int pieceClass, bool isTerrain, bool hasWear, bool wearSupports)
 	{
+		// pieceClass is kept in the signature on purpose: it is what the caller measured (BuildBlueprintParser.ClassOf) and
+		// what the harness prints per case, so a future rule that really needs the class does not have to change the call
+		// sites of BuildProbe and MHR_Build. Since 14/11/2026 no class is exempt - the flag alone decides.
 		if (isTerrain)
 		{
 			return true;   // the ground holds every piece, whatever it is
@@ -210,7 +219,7 @@ internal static class BuildSupportBelow
 		{
 			return false;   // a rock, a tree, an item on the ground: not a support
 		}
-		return pieceClass == 3 || wearSupports;
+		return wearSupports;   // furniture never holds - not even a roof (it is the only class with m_supports = false)
 	}
 
 	/// <summary>

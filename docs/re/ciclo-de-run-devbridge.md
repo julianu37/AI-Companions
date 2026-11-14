@@ -126,9 +126,41 @@ python tools/build_run_report.py --last
 O relatório sai do log e é o instrumento de aceite: `done`, `pulada(s)`, `desistindo de`, `no_support`, `no progress`,
 apoios de emergência, queda, morte, a linha final (`order ended: hc_ai_blueprint_done`).
 
+### 10. Reconciliar a cena contra o blueprint (a prova de "não falta peça")
+
+O relatório sai do **log** e conta intenção. A prova de que a obra está completa é a **cena**, peça por peça:
+
+```python
+call_bridge("build.pieces", x=-158.9, z=-427.7, radius=40)   # salvar em scratch/scene-<run>.json
+```
+
+O ajuste cena↔blueprint é sempre o **mesmo problema** e tem uma receita que funciona — **sem semente**:
+
+1. Ler o `.blueprint` (`prefab;categoria;x;y;z;…`, coordenadas **locais**) e a cena (mundiais).
+2. Varrer o yaw de **0 a 360°** (passo 1°), com a translação **ancorada na diferença de centróides**:
+   `tx = sx − (cosθ·mx + sinθ·mz)`, `ty = sy − my`, `tz = sz − (−sinθ·mx + cosθ·mz)`.
+3. Atribuição gulosa por prefab com tolerância **0,45 m**; guardar o yaw de maior contagem.
+4. Polir: refinar o yaw (±1,2° em passo 0,1; depois ±0,12° em passo 0,02) e, a cada passo, deslocar a
+   translação pela **mediana** do resíduo; parar quando o passo for < 1e-4.
+
+**Valide o método antes de acreditar nele:** rode-o no run **anterior** (do qual já se conhece o número) e
+confira que ele reproduz a contagem histórica. Nesta run ele reproduziu **964/985** no run C e deu
+**983/985** na cena nova.
+
+**Por que "sem semente" não é preciosismo:** o yaw muda de run para run porque a posição do jogador muda —
+105° nesta, ~46° no run C. Um ajuste semeado pela solução anterior casa **78** peças e um ICP que parte dele
+**diverge** para uma bacia espelhada (473 pares, yaw −45°). Um ajuste semeado não é evidência.
+
+**Como ler o resultado:** as peças que sobram geralmente **não** são peças faltando. Nesta run sobraram 2 —
+as **únicas duas** peças do plano em `y = -2.00` (fundação enterrada), presentes na cena **0,97 m acima** do
+plano, assentadas no terreno que é mais alto ali. Confira sempre se o "faltante" tem um "extra" do **mesmo
+prefab** a uma distância plausível: 2 faltantes + 2 extras do mesmo prefab = **0 faltando**.
+
 ## Depois do run
 
 - **O aceite é do jogador**, não do log sozinho: número verde com peça faltando na captura de tela é run reprovado.
+- **Nenhum run é declarado concluído pelo relatório — só pela cena reconciliada** (passo 10). O run C disse
+  `done: 975` com **974** peças na cena, e o mod disse "pronto" com 10 faltando.
 - Um aceite que falha **volta para a fila** (`docs/backlog-construcao.md`) **com o número que o matou**.
 - O mesmo ciclo serve para medir uma mudança de AI, de movimento ou de job — o que muda é só o comando do passo 8.
 
@@ -142,3 +174,4 @@ apoios de emergência, queda, morte, a linha final (`order ended: hc_ai_blueprin
 | Dois `run_watch.py` ao mesmo tempo | dois samplers no mesmo sítio |
 | Usar mouse/screenshot para entrar no mundo | `world_enter` faz a sequência e espera o carregamento |
 | Concluir o aceite lendo só o log | o log é narrativa; `build_status`/`build.pieces` são o estado |
+| Semear o ajuste cena↔blueprint na solução do run anterior | o yaw muda com a posição do jogador; o ajuste semeado casa 78 peças e o ICP diverge para uma bacia espelhada |

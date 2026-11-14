@@ -142,6 +142,7 @@ internal static class Program
 		new SectionDef("am", "BuildRecovery - a peca dada por perdida volta na escada (outras pecas, fim do andar, fim da obra)", BuildRecoveries),
 		new SectionDef("an", "BuildOverhead - a peca que fecha a tampa sobre a cabeca do proprio companheiro", OverheadLids),
 		new SectionDef("ao", "BuildArrival - um andar de baixo nao e 'cheguei' (a tolerancia do passo)", ArrivalLevels),
+		new SectionDef("ap", "BuildSupportBranch - movel sob o raio nao e prova de 'peca no chao'", SupportBranch),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -1153,10 +1154,13 @@ internal static class Program
 		// planted deep enough but over the top of a chest - furniture carries no support, so the post had nothing under it)
 		SurfaceCase(new[] { 0.5f, 1.2f }, new[] { false, true }, 2, 0.4f, 1, "a de 0,5 m não segura (baú) e a de 1,2 m segura -> a de 1,2 m");
 		SurfaceCase(new[] { 0.5f, 1.2f }, new[] { false, false }, 2, 0.4f, -1, "nenhuma das duas segura -> terreno");
-		// the SUPPORT OF THE PLACED PIECE (FootprintSupported): a roof piece has m_supports = false in Valheim and is held by
-		// the EDGE of the row below - the 13 pieces that stayed out for five rounds and the 318 "vão de 0,16 m"
-		HoldCase(3, false, true, false, true, "telhado sobre telhado: a fileira de baixo apoia pela borda (o caso medido)");
-		HoldCase(3, false, true, true, true, "telhado no topo de parede/viga");
+		// the SUPPORT OF THE PLACED PIECE (FootprintSupported): which collider in the piece's footprint can hold it. Every
+		// structural wooden prefab is m_supports = true (measured, docs/re/support-rule-wearntear.md §5) - roofs included -
+		// so a roof is held by the row below it by the SAME rule as a floor: the piece below has to carry. Furniture never
+		// carries, not even for a roof (14/11/2026, the player's question "por que cama como ancora?"): the old bypass
+		// (pieceClass == 3 || wearSupports) let a roof stand on a chest/bed, which the game never reads as support.
+		HoldCase(3, false, true, true, true, "telhado sobre telhado/parede: a peca de baixo carrega (o caso medido)");
+		HoldCase(3, false, true, false, false, "telhado NAO e ancorado em mobilia (bau/cama nao sustentam)");
 		HoldCase(3, true, false, false, true, "telhado sobre o terreno");
 		HoldCase(0, false, true, true, true, "piso sobre piso/viga que carrega");
 		HoldCase(0, false, true, false, false, "piso NAO e apoiado por telhado (m_supports = false)");
@@ -1896,6 +1900,48 @@ internal static class Program
 		Check("SurfaceReach < 2,19 m (o que ele parou antes do spot) e >= 0,5 m",
 			BuildArrival.SurfaceReach < 2.19f && BuildArrival.SurfaceReach >= 0.5f,
 			"SurfaceReach " + BuildArrival.SurfaceReach.ToString("F1"));
+	}
+
+	/// <summary>Section (ap): <c>BuildSupportBranch</c> - <b>which support rule a pose falls under</b>, the footprint (the
+	/// game's own collider box grown by 0,15 m) or the single piece the vertical ray hit. The cases are the two ends of the
+	/// solo run of 14/11/2026, measured in game with <c>build.check</c>.</summary>
+	private static void SupportBranch()
+	{
+		// 1) the defect itself: the two roofs of #901/#917 sat 0,16 m over the top of a CHEST (m_supports false). The old
+		//    rule answered "not elevated" and asked the chest, which refused the piece 29 times while two supports stood
+		//    1,00 m under it. Furniture under the ray is not proof of "a piece on the ground".
+		Check("movel 0,16 m abaixo: o footprint decide (as 2 telhas do run)",
+			BuildSupportBranch.UsesFootprint(0.16f, false), "drop 0,16, m_supports false");
+
+		// 2) the other end, measured on the same house: a floor standing 0,10 m over its neighbour reads that neighbour
+		//    (m_supports true) - 81 floors of the scene answer the same as before, so the branch must not change here
+		Check("piso 0,10 m sobre outro piso: segue a peca que o jogo le (muda nada)",
+			!BuildSupportBranch.UsesFootprint(0.10f, true), "drop 0,10, m_supports true");
+
+		// 3) the terrain (no WearNTear at all): never the footprint - the ground holds everything, whatever it is
+		Check("terreno (sem WearNTear): nao e o footprint",
+			!BuildSupportBranch.UsesFootprint(0.10f, null), "drop 0,10, m_supports null");
+
+		// 4) 0,6 m is the historical threshold and it stays INCLUSIVE on the lower branch: 0,6 m over a supporting piece
+		//    is still read by that piece (the number is not what the defect was about)
+		Check("0,6 m justo sobre peca que apoia: ainda a peca do raio",
+			!BuildSupportBranch.UsesFootprint(0.6f, true), "drop 0,6, m_supports true");
+
+		// 5) above it the footprint always decides, supporting piece or not (unchanged behaviour)
+		Check("0,7 m acima: footprint, com e sem apoio no raio",
+			BuildSupportBranch.UsesFootprint(0.7f, true) && BuildSupportBranch.UsesFootprint(0.7f, false),
+			"drop 0,7");
+
+		// 6) a piece refused by the game (furniture) at ANY height under the pose means the footprint answers - the
+		//    1,2 m case is a post/tile on a chest, which the same rule has to cover
+		Check("movel a 1,2 m e a 0,05 m: footprint nos dois",
+			BuildSupportBranch.UsesFootprint(1.2f, false) && BuildSupportBranch.UsesFootprint(0.05f, false),
+			"drop 1,2 / 0,05, m_supports false");
+
+		// 7) the constant is the one the probe had (the branch is the change, not the number)
+		Check("Elevated == 0,6 (o numero historico da sonda)",
+			Math.Abs(BuildSupportBranch.Elevated - 0.6f) < 0.0001f,
+			"Elevated " + BuildSupportBranch.Elevated.ToString("F1"));
 	}
 
 	/// <summary>Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has

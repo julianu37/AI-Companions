@@ -707,7 +707,70 @@ aos pés continua com `Reach` e o passo de 1,5 m. Harness **1156 PASS / 0 FAIL**
 
 ---
 
-#### 19.4 O run C fechou "pronto" com **10 peças faltando** e **109 exclusões do watchdog** — *aberto, medido 14/11/2026*
+#### 19.4 O run C fechou "pronto" com **10 peças faltando** e **109 exclusões do watchdog** — *fechado em 14/11/2026 (19.4.2: 985/985 na cena); medido em 14/11/2026*
+
+##### 19.4.1 A **mobília** não é âncora: a sonda perguntava a peça errada sob o raio — *corrigido em 14/11/2026*
+
+O jogador perguntou, sobre a captura dos buracos do telhado: *"por que cama como âncora?"*. A pergunta apontou para
+duas linhas concretas do código, e as duas estavam erradas pelo mesmo motivo: **mobília sendo lida como apoio**.
+
+| defeito | onde | o que dizia | o que a medição mostrou |
+|---|---|---|---|
+| a sonda escolhia a regra pela **altura** | `BuildProbe.CheckPoint` (`elevated`) | `point.y - surface.y > 0.6f` → footprint; senão "peça no chão", pergunta o `m_supports` da peça sob o raio | #901/#917 (`wood_roof_45`) com o raio parando **0,16 m** sobre um **baú**: a regra virava "peça no chão", perguntava o baú (`false`) e recusava **29 vezes** — com um `wood_floor` e um `wood_wall_roof_45` (ambos `true`) a **1,00 m** embaixo |
+| **todo telhado** era aceito por **qualquer** `WearNTear` | `BuildSupportBelow.HoldsPlacedPiece` | `pieceClass == 3 \|\| wearSupports` — bypass escrito em 04/11/2026 sobre a crença (já corrigida em 11/11/2026) de que "telhado tem `m_supports = false`" | com todas as peças estruturais `true` (`docs/re/support-rule-wearntear.md` §5), o bypass era um **no-op** para telhado-sobre-telhado e o único efeito vivo era o **errado**: telhado em cima de **baú/cama** passava, embora o jogo nunca leia mobília como apoio (`WearNTear.cs:920-923`) e o fantasma vanilla recuse construir ali (`Player.cs:3890-3893`) |
+
+**Correções** (tabelas puras, seções `(ap)` e `(r)` do harness):
+
+- `AI/BuildSupportBranch.cs` (novo) — `UsesFootprint(drop, hitSupports)`: acima de `Elevated = 0,6 m` **ou** quando o
+  que o raio achou **não carrega** (`m_supports = false`, mobília), a resposta é o **footprint**. Um raio que bateu em
+  mobília não é prova de que a peça está no chão.
+- `BuildSupportBelow.HoldsPlacedPiece` — sem exceção por classe: **toda** peça precisa de `m_supports` para segurar
+  qualquer outra (o terreno continua segurando tudo; pedra/árvore sem `WearNTear` não segura nada).
+
+**Medido no jogo depois do deploy** (`build.check` nas 4 posições que o run D adiou): `elevated = True` e **nenhum**
+`no_support` nas quatro — só `needs_station`, que é a bancada ainda não construída naquele ponto da obra. O artefato
+do baú morreu.
+
+##### 19.4.2 O run solo com a correção: **985/985 peças, 0 faltando** — *fechado em 14/11/2026*
+
+Run solo (`CommHomeBasicBP`, 1 companheiro sem grupo, sítio limpo 974 → 0, DLL com as duas correções acima,
+95 métodos patcheados). Relatório (`build_run_report.py --last`) contra o run C:
+
+| métrica | alvo | run C | **este run** |
+|---|---|---|---|
+| `done` | 985 | 975 | **985** |
+| peças na cena | 985 | 974 | **985** |
+| `puladas` (contador) | 0 | 17 | **1** (recuperada por `BuildRecovery`) |
+| `no_support` (recusas) | — | 236 | **6** (−97,5 %) |
+| `apoio de emergência` | < 5 | 3 | **0** |
+| `no progress` | < 6 | 20 | **10** |
+| watchdog "ficam de fora" | — | 30 chamadas / 109 peças | **0 chamadas / 0 peças** |
+| `UNSUPPORTED` | 0 | — | **0** |
+| mortes | 0 | 0 | **1** (queda de 6,8 m do telhado — item 11; o mod retomou na peça 851 depois do respawn) |
+| `order ended` | `hc_ai_blueprint_done` | done | **`hc_ai_blueprint_done`** |
+| linhas de log por peça | — | — | **3,14** |
+
+**A reconciliação peça-a-peça fecha 985/985, não pelo relatório mas pela cena.** O ajuste cena↔blueprint
+(yaw **105,000°**, `tx -166,5926 ty 39,8000 tz -430,7547`, tolerância 0,45 m) casa **983/985** com
+distância média **0,196 m** e máxima **0,413 m**; os **2** restantes são as **únicas duas** peças do plano em
+`y = -2.00` (`wood_wall_roof_top_45`, #1 e #2, a fundação enterrada) e elas **estão na cena** a **0,31 / 0,34 m**
+em XZ e **0,97 m** acima do plano — assentaram no terreno, que é mais alto que o plano ali. Nenhuma peça
+faltando, nenhuma duplicata, **2 extras** = essas duas mesmas peças. O método foi validado contra o run C
+antes de ser usado (reproduz os **964/985** históricos com yaw 47,000°), o que é o que permite confiar no
+número desta run.
+
+**A nota de método importa:** o yaw desta run é **105°**, não os ~46° do run C, e por isso qualquer ajuste
+semeado pela solução anterior divergia (78 pares, depois 473 em bacia errada no ICP). O ajuste correto é
+**sem semente**: varredura de 360° de yaw com a translação ancorada na diferença de centróides, depois
+polimento da mediana do resíduo. Um ajuste semeado não é evidência.
+
+**O que o histograma de altura comprova** (run C → este run): `46,8` **46 → 48** (as duas telhas dos buracos
+das capturas), `40,9` **11 → 22** (os 11 baús que faltavam), `42,4` **3 → 0** e `38,8` **70 → 65** (os postes
+de emergência, que não são mais plantados).
+
+---
+
+#### 19.4 O run C fechou "pronto" com **10 peças faltando** e **109 exclusões do watchdog** — *corpo do item*
 
 O run C terminou com `order ended: hc_ai_blueprint_done` (o mod disse "pronto") e o espelho do estado discorda:
 
@@ -732,14 +795,16 @@ pede o `wood_beam_1` de emergência (fora do blueprint) e, quando não resolve, 
 **Peças nomeadas pelo watchdog, por prefab:** `piece_chest_wood` 45, `wood_floor` 36, `wood_roof_45` 17,
 `wood_beam` 5, `wood_beam_45` 4, `wood_wall_half` 1, `woodwall` 1.
 
-**É o tema do plano de `fix/piso-apoio`, não implementado:** puxar o apoio **de trás** no caminho solo
-(`BuildPullFloors` não existe no repo) e não puxar piso para cima de piso sem apoio de pé. O run C não testou essas
-duas regras porque elas não estão no código — testou só as de chegada (19.3), que passaram.
+**Fechado pelas duas regras do plano de `fix/piso-apoio`** (implementadas como `AI/LandingFloors.cs`, seção `(ak)` —
+o item 1 do plano: um piso só é puxado para diante da escada se o que o segura já está de pé — e `AI/SettledPieces.cs`
+— o item 2: sem grupo, uma peça **já colocada** deixava de ser excluída de candidata a apoio, porque
+`MHR_BuildGroup.IsDone` devolve `false` para chave nula). Com as duas **mais** a correção de mobília do 19.4.1, o run
+solo de 14/11/2026 fechou **985/985 peças na cena** e **0 faltando** (19.4.2).
 
-**Próximo passo, com os números que reprovaram:** implementar os itens 1 e 2 do plano de `fix/piso-apoio`
-(apoio de pé antes do puxão; puxão para trás no solo com `PlacedIndices`/`SkippedIndices`) e re-rodar o mesmo
-aceite. **Não** declarar "pronto" com peças faltando: o jogador foi explícito — *"peças faltando na construção não
-será tolerado"*.
+**Este item não deixa de ser a razão de existir da correção — deixa de estar aberto.** O que o run C provou foi que
+um "pronto" do mod pode discordar da cena; o que fecha o item é a **reconciliação peça-a-peça contra o blueprint**
+(19.4.2), não o contador `done`. A regra que fica registrada: **nenhum run é declarado concluído pelo relatório —
+só pela cena reconciliada**, porque foi o relatório que disse 975 quando a cena tinha 974.
 
 ---
 

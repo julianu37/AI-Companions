@@ -600,7 +600,13 @@ internal static class BuildProbe
 		// furniture that does not support while the piece is really held by walls/poles at its edges - so up there the
 		// test is the footprint, the same idea the game's own UpdateSupport uses (the collider boxes grown by 0,15 m
 		// looking for the ground or for a supporting piece).
-		bool elevated = hasHit && point.y - surface.y > 0.6f;
+		// 14/11/2026 (the solo run, measured in game): the branch is not only the height any more. The roof at #901/#917 sat
+		// 0,16 m over the top of a CHEST - `point.y - surface.y` said "on the ground", the rule asked the chest's
+		// m_supports (false) and refused both roofs 29 times while a wood_floor and a wood_wall_roof_45 (both m_supports
+		// true) stood 1,00 m under them. A hit that does not support is not evidence that the pose is a piece on the ground:
+		// the game itself refuses to build on furniture, so the piece at that pose is held by its footprint or not at all.
+		bool elevated = hasHit && BuildSupportBranch.UsesFootprint(point.y - surface.y,
+			groundWear != null ? (bool?)groundWear.m_supports : null);
 		if (elevated)
 		{
 			if (!FootprintSupported(piece, point, rot))
