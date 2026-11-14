@@ -6735,7 +6735,16 @@ internal static class MHR_Build
 				LogDebug(ai, "a hop to reach the " + state.Prefab + " at " + (gap - MaxPlace).ToString("F1") + " m beyond the reach");
 			}
 		}
-		MHR_Mover.Go(ai, dt, state.HasWalkTo ? state.WalkTo : state.Pos, Reach, true, "Build");
+		// 14/11/2026 (the solo run, measured): the arrival of a walk is not the reach of a placement. `Reach` (2,5 m) answers
+		// "can the piece be placed from here", and using it as "have I got there" let the body stop 2,19 m short of the walk
+		// spot - measured on pieces 147/148 of the run: spot at (-160,9, 39,0, -428,9), body stopped at (-162,4, 38,8,
+		// -427,3), 2,97 m from the piece, standing on the ground UNDER it, where OverheadBlocked refuses the floor for
+		// being a lid; the 12 s clock then expired and the piece was retried three times and given up. A surface the
+		// companion has to stand on is arrived at its own point (a step's slack); a piece at the feet, reached from where
+		// the body already stands, keeps `Reach` and the step's 1,5 m of vertical slack.
+		float arrival = state.HasWalkTo ? MHR_Mover.SurfaceArrival : MHR_Mover.ArrivalLevel;
+		MHR_Mover.Go(ai, dt, state.HasWalkTo ? state.WalkTo : state.Pos,
+			state.HasWalkTo ? MHR_Mover.SurfaceReach : Reach, true, "Build", arrival);
 		if (MHR_Mover.GaveUp(ai))
 		{
 			// "no site" was a lie here: the spot is fine, the way to it is not (a wall, a tree, the furniture the player

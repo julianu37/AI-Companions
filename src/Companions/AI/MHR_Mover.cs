@@ -221,12 +221,58 @@ namespace Companions
             return Go(ai, dt, goal, dist, allowRun, tag, SpeedAuto);
         }
 
+        /// <summary>
+        /// 14/11/2026 (the solo run of the <c>CommHomeBasicBP</c>, measured: <b>11 of 15</b> <c>no progress</c> lines with the
+        /// body at 38,8/38,7 and the walk spot at 39,8/39,9 - <c>flat</c> between 0,6 and 2,5 m and <c>dy</c> of
+        /// <b>1,0/1,1 m</b>): the arrival test of <see cref="Go(CompanionAI, float, Vector3, float, bool, string)"/> treats
+        /// "within 1,5 m up or down" as the same level, and that tolerance was meant for <b>a step</b> - a floor half a metre
+        /// up, a terrain bump. This house has <b>1,0 m of crawlspace</b> between its ground floor (38,8) and its deck
+        /// (39,8), so a companion standing <b>under</b> the deck it must build from is, by that test, "arrived": it stops,
+        /// the build's clock runs 12 s without getting closer, and the piece goes to the retry queue. The comment on the
+        /// test itself says it exists to stop exactly this ("not standing under it on the floor below") - the number was
+        /// just too loose to keep the promise.
+        ///
+        /// <para><see cref="Vertical"/> is that number for the callers that know what they are walking to: below it the
+        /// body is on the goal's level and stops; above it the body is one storey off and keeps walking - the stuck ladder
+        /// then does what it is there for (<c>TryHopUp</c>/<c>TryStartClimb</c>: the measured run logged
+        /// <c>1,1m below where it needs to be - jumping up onto</c> and got there). Only the caller that means "a surface I
+        /// stand ON" passes it; every other move keeps the 1,5 m it always had.</para>
+        /// </summary>
+        public static bool Go(CompanionAI ai, float dt, Vector3 goal, float dist, bool allowRun, string tag, float vertical)
+        {
+            return Go(ai, dt, goal, dist, allowRun, tag, SpeedAuto, vertical);
+        }
+
+        /// <summary>The vertical tolerance of <see cref="Go(CompanionAI, float, Vector3, float, bool, string, float)"/> for a
+        /// surface the companion has to stand <b>on</b> (see <see cref="BuildArrival.Surface"/>).</summary>
+        public const float SurfaceArrival = BuildArrival.Surface;
+
+        /// <summary>The <b>flat</b> tolerance for a walk whose target is a surface to stand on (see
+        /// <see cref="BuildArrival.SurfaceReach"/>): the placement's own radius is not an arrival's.</summary>
+        public const float SurfaceReach = BuildArrival.SurfaceReach;
+
         // 1.4.76: speed set by the caller (Follow matches the player's pace) instead of by distance.
         public const int SpeedAuto = 0, SpeedWalk = 1, SpeedJog = 2, SpeedRun = 3;
         public const string FollowTag = "Follow";
         public static bool Go(CompanionAI ai, float dt, Vector3 goal, float dist, bool allowRun, string tag, int speed)
         {
+            return Go(ai, dt, goal, dist, allowRun, tag, speed, ArrivalLevel);
+        }
+
+        /// <summary>The vertical tolerance of the arrival test when the caller does not say otherwise: the historical
+        /// 1,5 m (a step, a slope, a body standing on the same floor). See <see cref="BuildArrival.Step"/>.</summary>
+        public const float ArrivalLevel = BuildArrival.Step;
+
+        /// <summary>The vertical tolerance of the arrival test <b>while a move is in flight</b> - set by
+        /// <see cref="Go(CompanionAI, float, Vector3, float, bool, string, float)"/> for one call and read by
+        /// <see cref="GoInner"/>; <see cref="ArrivalLevel"/> otherwise.</summary>
+        [System.ThreadStatic] private static float s_arrivalLevel;
+
+        public static bool Go(CompanionAI ai, float dt, Vector3 goal, float dist, bool allowRun, string tag, int speed,
+            float vertical)
+        {
             if (ai == null) return false;
+            s_arrivalLevel = vertical;
             try { return GoInner(ai, goal, dist, allowRun, tag ?? "", speed); }
             catch (Exception e)
             {
@@ -289,8 +335,9 @@ namespace Companions
             CompanionStamina cst = ai.GetComponent<CompanionStamina>();
             s.Quiet = cst != null && cst.IsCrouching;
 
-            // arrived: within reach on the same level (not standing under it on the floor below)
-            if (Flat(pos, goal) <= dist && Mathf.Abs(pos.y - goal.y) <= 1.5f)
+            // arrived: within reach on the same level (not standing under it on the floor below). The level's tolerance is
+            // the caller's: a surface to stand ON answers SurfaceArrival (0,5 m), everything else keeps the 1,5 m step.
+            if (Flat(pos, goal) <= dist && Mathf.Abs(pos.y - goal.y) <= s_arrivalLevel)
             {
                 s.TrapAt = now;   // getting there is progress by definition: the next 90 s are the next trap's
                 Halt(ai, c, s);

@@ -141,6 +141,7 @@ internal static class Program
 		new SectionDef("al", "BuildOverweight - o companheiro sobrecarregado descarrega e continua a obra", OverweightUnloads),
 		new SectionDef("am", "BuildRecovery - a peca dada por perdida volta na escada (outras pecas, fim do andar, fim da obra)", BuildRecoveries),
 		new SectionDef("an", "BuildOverhead - a peca que fecha a tampa sobre a cabeca do proprio companheiro", OverheadLids),
+		new SectionDef("ao", "BuildArrival - um andar de baixo nao e 'cheguei' (a tolerancia do passo)", ArrivalLevels),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -1839,6 +1840,62 @@ internal static class Program
 		Check("parede com o fundo nos pes: NAO e tampa (a janela do corpo ja trata)",
 			!BuildOverhead.LandsOnHead(0f, 0f, halfX, 0.1f, feet, feet + 2f, feet, bodyTop, radius, BuildOverhead.Headroom),
 			"o fundo nos pes e o caso do piso que se pisa");
+	}
+
+	/// <summary>
+	/// Section (ao): <c>BuildArrival</c> - <b>is the body where it has to stand, or one storey below?</b> The measured run
+	/// (14/11/2026) had 11 of 15 <c>no progress</c> lines with the body at 38,8/38,7 and the walk spot at 39,8/39,9: the
+	/// mover's arrival test treated 1,5 m as "the same level", so the deck's crawlspace counted as arrived. The two ends
+	/// asserted here are the measured ones (1,0 m under the deck: NOT arrived) and the step the 1,5 m was for (0,4 m up a
+	/// threshold: arrived).
+	/// </summary>
+	private static void ArrivalLevels()
+	{
+		// 1) the measured case: a surface to stand on, 1,0 m above the feet -> NOT arrived
+		Check("fundo do deque 1,0 m acima dos pes: NAO chegou (o run de 14/11)",
+			!BuildArrival.Arrived(38.8f, 39.8f, true), "1,0 > 0,5");
+
+		// 2) the same 1,0 m above a target that is NOT a surface to stand on: the old tolerance, arrived
+		Check("mesmo 1,0 m num alvo que nao e superficie: chegou (tolerancia do passo)",
+			BuildArrival.Arrived(38.8f, 39.8f, false), "1,0 <= 1,5");
+
+		// 3) a real step, a surface: 0,4 m up -> arrived
+		Check("degrau de 0,4 m numa superficie: chegou", BuildArrival.Arrived(38.8f, 39.2f, true), "0,4 <= 0,5");
+
+		// 4) the 0,5 m end of the surface tolerance is INCLUSIVE
+		Check("0,5 m justo numa superficie: chegou (fim inclusivo)",
+			BuildArrival.Arrived(38.8f, 39.3f, true), "0,5 <= 0,5");
+
+		// 5) 0,6 m on a surface: not a step any more
+		Check("0,6 m numa superficie: NAO chegou", !BuildArrival.Arrived(38.8f, 39.4f, true), "0,6 > 0,5");
+
+		// 6) the piece AT the feet (dy = 0): arrived, whichever the target is - this is the case that must never break
+		Check("peca aos pes (dy = 0): chegou sempre",
+			BuildArrival.Arrived(38.8f, 38.8f, true) && BuildArrival.Arrived(38.8f, 38.8f, false), "dy = 0");
+
+		// 7) the sign does not matter: 1,0 m BELOW a surface is as much "one storey off" as above it
+		Check("superficie 1,0 m ABAIXO dos pes: NAO chegou",
+			!BuildArrival.Arrived(39.8f, 38.8f, true), "|dy| = 1,0 > 0,5");
+
+		// 8) the 1,5 m end of the step tolerance is inclusive
+		Check("1,5 m justo num alvo comum: chegou (fim inclusivo)",
+			BuildArrival.Arrived(38.8f, 40.3f, false), "1,5 <= 1,5");
+
+		// 9) 1,6 m on a plain target: out
+		Check("1,6 m num alvo comum: NAO chegou", !BuildArrival.Arrived(38.8f, 40.4f, false), "1,6 > 1,5");
+
+		// 10) the two constants are what the measured run needs: the surface tolerance BELOW the 1,0 m crawlspace it has to
+		//     refuse, and the step tolerance above it (so the old callers keep their behaviour)
+		Check("Surface < 1,0 m (o vao medido) < Step",
+			BuildArrival.Surface < 1.0f && 1.0f < BuildArrival.Step,
+			"Surface " + BuildArrival.Surface.ToString("F1") + ", Step " + BuildArrival.Step.ToString("F1"));
+
+		// 11) 14/11/2026, pieces 147/148 of the run: the flat tolerance of a walk to a surface cannot be the placement's
+		//     Reach (2,5 m) - the body stopped 2,19 m short of the spot, on the ground under the piece, where the floor is
+		//     a lid. The number has to be BELOW the measured shortfall and above a navmesh edge's slop.
+		Check("SurfaceReach < 2,19 m (o que ele parou antes do spot) e >= 0,5 m",
+			BuildArrival.SurfaceReach < 2.19f && BuildArrival.SurfaceReach >= 0.5f,
+			"SurfaceReach " + BuildArrival.SurfaceReach.ToString("F1"));
 	}
 
 	/// <summary>Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has

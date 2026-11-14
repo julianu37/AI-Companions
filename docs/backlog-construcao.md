@@ -673,6 +673,76 @@ Aceite do run solo (o mesmo de 19.1, mais as duas linhas novas):
 
 ---
 
+#### 19.3 A **chegada** de uma caminhada não é o **alcance** de uma colocação — *corrigido em 14/11/2026, run de validação reprovado por outro defeito (ver 19.4)*
+
+Duas runs solo do `CommHomeBasicBP` (985 peças, 1 worker) mediram que o companheiro parava de andar **antes da hora** e
+depois não colocava a peça. As duas causas saem do mesmo lugar: `MHR_Mover.Go` recebia `Reach` (2,5 m) como raio de
+**chegada**, e o teste vertical era o `1,5f` fixo.
+
+**Run A (00:19, DLL `d15044a`)** parou em **236/985** com 18 `no progress` e 2 peças dadas por perdidas. As 18 linhas
+tinham assinatura única: **11 de 15** com o corpo em **38,8/38,7** e o walk spot em **39,8/39,9** — `dy` de 1,0/1,1 m e
+`flat` entre 0,6 e 2,5 m. O `MHR_Mover.GoInner` considerava "cheguei" com `|Δy| <= 1,5 m`, então o corpo **1,0 m sob o
+deque** (o pé-direito medido da casa) era "chegado": ele parava, os 12 s corriam, a peça ia para a fila.
+
+**Run B (00:40, com as duas correções abaixo)** parou em **170/985** ao ser cancelada, mas com outra assinatura, nas
+peças **147/148**: `walk spot (-160,9, 39,0, -428,9)` e o corpo em `(-162,4, 38,8, -427,3)` — **2,19 m do spot** e
+2,97 m da peça, em pé no chão **sob** ela, onde `OverheadBlocked` recusa o piso por ser tampa. Tentada 3× e
+**abandonada** (`desistindo de stone_floor_2x2 ... 1 pulada(s)`). O raio de **colocação** (`Reach` 2,5 m) sendo usado
+como raio de **chegada** é o defeito: a 2,19 m do ponto, o corpo está em outro lugar.
+
+**As correções**, ambas em tabela pura (`AI/BuildArrival.cs`, seção (ao) do harness):
+
+| constante | valor | para quê |
+|---|---|---|
+| `BuildArrival.Surface` | 0,5 m | tolerância **vertical** de quem vai a uma superfície pisar nela (abaixo dos 1,0 m medidos) |
+| `BuildArrival.Step` | 1,5 m | tolerância vertical histórica, para alvos que não são superfície |
+| `BuildArrival.SurfaceReach` | 1,0 m | tolerância **plana** de chegada a uma superfície (abaixo dos 2,19 m medidos) |
+
+`MHR_Mover` ganhou a sobrecarga `Go(..., float vertical)` com `[System.ThreadStatic] s_arrivalLevel`, e
+`MHR_Build.Goto` passa `SurfaceArrival`/`SurfaceReach` **só** quando `state.HasWalkTo` (alvo é uma superfície); peça
+aos pés continua com `Reach` e o passo de 1,5 m. Harness **1156 PASS / 0 FAIL**.
+
+**O que o run C (01:12→01:57, com tudo) provou, medido:** a família de defeito **sumiu** — zero linhas com
+`dy = 1,0/1,1` sob o deque, e a run foi de **190 → 975 done**. O que reprovou o aceite é **outro** item (19.4).
+
+---
+
+#### 19.4 O run C fechou "pronto" com **10 peças faltando** e **109 exclusões do watchdog** — *aberto, medido 14/11/2026*
+
+O run C terminou com `order ended: hc_ai_blueprint_done` (o mod disse "pronto") e o espelho do estado discorda:
+
+| métrica | alvo (19.2) | medido |
+|---|---|---|
+| `done` distintos | 985 | **975** |
+| peças na cena (`build.pieces`) | 985 | **974** |
+| `desistindo de` | 0 | **1** (`piece_chest_wood`) |
+| `puladas` (contador) | 0 | **17** |
+| `no progress` | < 6 | **20** |
+| `apoio de emergência` | < 5 | **3** (✓) |
+| quedas / mortes / trapped | 0 | **0 / 0 / 0** (✓) |
+| watchdog "ficam de fora" | — | **30 chamadas, 109 peças (48 distintas)** |
+
+**A forma do defeito, do relatório (`build_run_report.py --last`):** `no_support` é **91 %** das 258 recusas
+(**236** tentativas de dependência) e a espera de **1470,3 s** está **toda no fim do plano** (fila: fim 1470,3 /
+meio 0,0). O bloco final é o **telhado**: `wood_roof_45` em **46,8** (8 m acima do deque) que não tem apoio de pé,
+pede o `wood_beam_1` de emergência (fora do blueprint) e, quando não resolve, é pulado. O `piece_chest_wood` em
+**40,9** faz o mesmo por rota (`route partial`, 12–18 m, tentado 3× em 7 passes de retry) e é a única peça
+**abandonada**.
+
+**Peças nomeadas pelo watchdog, por prefab:** `piece_chest_wood` 45, `wood_floor` 36, `wood_roof_45` 17,
+`wood_beam` 5, `wood_beam_45` 4, `wood_wall_half` 1, `woodwall` 1.
+
+**É o tema do plano de `fix/piso-apoio`, não implementado:** puxar o apoio **de trás** no caminho solo
+(`BuildPullFloors` não existe no repo) e não puxar piso para cima de piso sem apoio de pé. O run C não testou essas
+duas regras porque elas não estão no código — testou só as de chegada (19.3), que passaram.
+
+**Próximo passo, com os números que reprovaram:** implementar os itens 1 e 2 do plano de `fix/piso-apoio`
+(apoio de pé antes do puxão; puxão para trás no solo com `PlacedIndices`/`SkippedIndices`) e re-rodar o mesmo
+aceite. **Não** declarar "pronto" com peças faltando: o jogador foi explícito — *"peças faltando na construção não
+será tolerado"*.
+
+---
+
 #### 19.1 A causa real: o poste saía **sem espera nenhuma** — *corrigido em 13/11/2026, aguardando o run de validação*
 
 A hipótese 1 acima **não fecha as contas**: medido o log do run, o apoio já de pé de cada um dos 17 pisos citados está a
