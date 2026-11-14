@@ -364,7 +364,7 @@ não é queda, é **confinamento sob o piso**. Correção proposta: quando o com
 teleportar pela escada mais próxima ou recusar o walk spot e pedir outro. Aceite: nenhuma linha `route full` seguida de
 `desistindo` no run solo. **Não corrigido — registrado com o número que o matou.**
 
-### 21. A obra "termina" em `hc_ai_blueprint_done` com **490 peças puladas** — *medido 13/11/2026, o item mais grave; correção implementada 13/11/2026, run de confirmação pendente*
+### 21. A obra "termina" em `hc_ai_blueprint_done` com **490 peças puladas** — *medido 13/11/2026, o item mais grave; correção implementada 13/11/2026, **confirmada no run solo de 13/11/2026 (985/985)**; resta o item 18*
 O run fechou assim, e **não** é sucesso:
 
 ```
@@ -442,28 +442,82 @@ texto. É a mesma ideia do `ResumeIndex` que a barreira de andar já usa — a d
 3. **Pular peça estrutural (`wood_beam`, `wood_pole2`, `wood_floor`) não pode ser silencioso**: hoje ela entra na
    mesma fila de uma cadeira, e é ela que segura a largura do telhado.
 
-**Correção implementada (13/11/2026, ciclo do `fix/piso-apoio`):** a peça dada por perdida **volta ao plano** quando a
-caminhada chega ao fim, na ordem do plano (índice menor primeiro = de baixo para cima), com as tentativas e o orçamento de
-auto-cura (puxão de apoio, poste de emergência, ajuste de pose) **zerados** — o segundo ataque não é cópia do primeiro, é
-outro ataque: a casa em volta mudou e os recursos que foram negados voltam a estar disponíveis. A regra pura está em
-`src/Companions/AI/BuildRecovery.cs` e o ponto de chamada é `MHR_Build.RecoverSkipped`, no `Advance`, **antes** do gate de
-peça e do fim da ordem. **Não é regra deste blueprint:** ela lê só "é blueprint?", o conjunto de puladas e a contagem de
-passes — qualquer `.blueprint` que o jogador carregar recebe a mesma segunda chance.
+**Correção implementada (13/11/2026, ciclo do `fix/piso-apoio`):** a peça dada por perdida **volta ao plano**, numa
+**escada de três degraus** que é a do jogador — *"entra na fila pra uma nova tentativa depois de umas outras 5 ~10 peças
+colocadas e depois no fim das peças do andar da blueprint e só por ultimo no final de toda construção"*:
 
-**Quando ela para:** um passe que **não coloca nenhuma peça** é o último (o instrumento é o mesmo do watchdog de inércia).
-Um passe que coloca ganha o seguinte, então uma casa com várias peças inalcançáveis as recupera conforme a estrutura fecha,
-e uma peça que o mundo realmente não aceita encerra a ordem com o número na linha em vez de segurar o companheiro ali para
-sempre. O teto `BuildRecovery.MaxPasses` = 2 fecha o outro lado: cada passe **anexa** as peças ao plano (a caminhada nunca
-volta sozinha), então o crescimento do plano é limitado por construção (no pior caso, 3× o tamanho original).
+| degrau | quando | por quê |
+|---|---|---|
+| 1 — `Queue` | **6 peças colocadas** depois da falha (`BuildRecovery.QueueGap`) | cada peça que sobe é mais uma coisa segurando a próxima; o andar ainda está sendo construído |
+| 2 — `Storey` | a caminhada vai **subir de andar** (`nextLevel > curLevel`) | o andar da peça está tão completo quanto vai ficar antes do próximo começar |
+| 3 — `End` | o plano acabou | a casa terminada é o máximo de apoio que a peça vai ter |
+
+Cada degrau zera as tentativas e o orçamento de auto-cura (puxão de apoio, poste de emergência, ajuste de pose): o segundo
+ataque não é cópia do primeiro, é outro ataque, porque a casa em volta mudou. O contador `PlannedStep.Recovered` é por
+**peça** (teto `BuildRecovery.MaxTries` = 3), então os três degraus não podem virar laço; e todo degrau depois do primeiro
+exige que **alguma peça tenha subido desde a última tentativa** — uma peça que volta para a mesma casa encontra a mesma
+recusa, e no fim do plano, onde nada mais é colocado, ela seria re-tentada a cada frame.
+
+A regra pura está em `src/Companions/AI/BuildRecovery.cs` (`Decide` responde o degrau, `InsertAt` a posição) e o ponto de
+chamada é `MHR_Build.RecoverDue`, no `Advance`, **depois** da fila de retry (peça que a ordem ainda segura não está dada por
+perdida) e **antes** do gate de peça. No caminho solo o passo é **movido dentro do plano** com `Reorder` e a caminhada
+continua de onde estava — não pula peça nenhuma, as que ficam entre a caminhada e a recuperada são colocadas no tempo delas,
+que é exatamente o "depois de umas outras peças". Num **sítio** (grupo) o plano é do grupo e ninguém reordena: o único
+degrau é o fim da obra, por append, onde o índice de ninguém se move. **Não é regra deste blueprint:** ela lê só o andar
+(que todo plano carrega) e as contagens da própria ordem.
 
 **O que o run de 13/11/2026 mediu e este fix ataca:** as duas lajes do andar 43,8 falharam com `no progress` (o corpo
 estava em 39,7, `route partial`, a subida ainda não existia) e o companheiro ficou um andar abaixo sem rota até elas:
 3 tentativas cada, `desistindo de wood_floor` duas vezes, e a obra declarada pronta em **983/985**. A casa que terminou em
 volta delas é exatamente o que as sustentaria — a leitura do jogador, antes do log: *"aqueles dois ali que faltaram não
-iriam cair se ele tivesse colocado, pois estariam ancorados nos das laterais"*.
+iriam cair se ele tivesse colocado, pois estariam ancorados nos das laterais"*. Com a escada, aquelas duas não esperam o
+fim da obra: a 660 e a 679 voltam logo depois de outras 6 peças, com o andar 43,8 ainda em construção.
 
-Aceite: run solo do `CommHomeBasicBP` fecha **985/985** ou termina com **as peças que o mundo recusou** nomeadas na linha
-final — nunca mais `blueprint_done` com peça faltando por falta de tentativa.
+Aceite: run solo do `CommHomeBasicBP` fecha **985/985** — peça faltando não é tolerada, e o aviso de peça faltando não é
+aceite alternativo (foi recusado explicitamente pelo jogador: *"pra que um aviso de peças faltando… se eu fui bem claro
+que não pode ficar nenhuma peça faltando sem ser colocada?"*).
+
+**Run de confirmação — 13/11/2026, solo, 1 companheiro, `CommHomeBasicBP` (985 peças), DLL 1.9.6:**
+
+```
+PLACAR: done 985 · puladas (contador) 1 · puladas (fala final) 0 · mortes 0
+        apoio de emergência 23 colocados | 2 sem lugar
+RETRY:  no progress 23 later / 2 desist · verification 3 · blocked_by_player 2 · no_support 2
+ESPERA: 4,5 s medidas, 2 retenções de barreira (contra 1014,4 s / 177 retenções do run anterior)
+order ended: hc_ai_blueprint_done
+```
+
+**Os dois degraus que o run usou, e as peças que voltaram de pé:**
+
+```
+linha  732: desistindo de wood_floor em (-166,5, 39,8, -436,2)
+linha  932: peça dada por perdida volta ao plano (depois de outras peças): wood_floor - tentativa 1/3
+linha  932: volta antes de subir: wood_floor (202/985) -> placed (Direct) -> done: wood_floor ... supported
+linha 2223: desistindo de wood_wall_half em (-151,2, 43,3, -425,3)
+            volta ao plano (depois de outras peças), 7 peças depois, tentativa 1/3 — também ficou de pé
+```
+
+As duas voltaram no **degrau 1** (`Queue`, 6 e 7 peças colocadas depois) e ficaram de pé na primeira nova tentativa —
+exatamente a faixa *"depois de umas outras 5 ~10 peças colocadas"* que o jogador descreveu. A caminhada **não pulou**:
+logo depois do `Reorder` o log mostra `next: wood_pole2 (195/985)`, o passo seguinte ao que estava em execução.
+
+**A verificação geométrica independente (fora do mod):** as `build.pieces` do sítio (raio 32) somam **1008 = 985 do
+blueprint + 23 postes de emergência**. Transformando o `.blueprint` para o mundo (rotação 76,5°, âncora nos 2 `bed`) e
+comparando peça a peça por prefab com atribuição ótima: **984 das 985 casam** com distância média de **0,19 m** (máx.
+1,0 m, que é o assentamento no terreno). A 985ª **não falta** — está na **altura errada**: o `piece_chest_wood` do plano em
+`(-163,2, 44,9, -422,8)` foi plantado em `(-163,1, 38,8, -422,8)`, e o log diz por quê:
+
+```
+log ajustado: piece_chest_wood de (-163,1, 44,9, -422,8) para (-163,1, 38,8, -422,8) - falls
+[Move] "Companion" fell 6,8 m and took 18 fall damage
+```
+
+É o **item 18** (`AdjustPose` troca o Y do plano pelo `GetGroundHeight`) aparecendo uma vez neste run — a peça existe,
+o andar é que está errado. Foi a única ocorrência (`log ajustado` aparece 1× no log). Pelo critério do jogador isso ainda é
+peça faltando onde ela devia estar, então o item 18 é o que falta para o aceite ficar redondo.
+
+**O que o run ainda mostrou e não é deste fix:** 23 apoios de emergência (item 19 — o early check os planta sem tentar a
+puxada antes) e 2 quedas de 4,8 m e 6,8 m, 0 mortes.
 
 ### 22. A escada sobe **para um andar que ainda não existe** — *medido 13/11/2026, o item do "deb.→ cima, andar inteiro"*
 O jogador descreveu o defeito em três frases e as três estão certas, com número:
@@ -515,7 +569,7 @@ usado pelo `build.delete` da ponte) é o que mantém a rota andável depois da d
 **Aceite:** corpo em bolsão fechado, sem saída pela sonda → demole **1** peça, sai, e a estrutura acima continua de pé
 (`build.pieces` por altura igual antes/depois); a peça demolida volta ao plano e é recolocada.
 
-### 18. `AdjustPose` troca o **Y** do alvo pelo chão — *medido 13/11/2026, não corrigido*
+### 18. `AdjustPose` troca o **Y** do alvo pelo chão — *medido 13/11/2026, **ainda acontecendo no run de confirmação** (1×), não corrigido*
 `AdjustPose` (`MHR_Build.cs:7275`) protege o XZ (raio de 1 m para peça estrutural) mas `BuildSite.Find` monta o
 candidato com `ZoneSystem.GetGroundHeight` (`AI/BuildSite.cs:146`) — o **Y do plano é jogado fora**. Medido no run de
 13/11/2026: um baú do andar de **44,9** virou alvo em **38,8** (`log ajustado: piece_chest_wood de (-161,4, 44,9, ...)
@@ -523,6 +577,11 @@ para (-161,4, 38,8, ...) - falls`) e o companheiro caiu os 6,8 m que o mataram, 
 **Correção proposta:** `Find` recebe a altura do plano e o ajuste só varre XZ nessa altura (ou, para peça estrutural,
 recusa qualquer pose cujo Y difira do plano mais que a tolerância). Provar no harness com a tabela pura do filtro de
 candidato. É o próximo item do tema "rota vertical" (com o 11).
+
+**No run de confirmação de 13/11/2026 (985/985) aconteceu 1×, e é a única diferença entre o plano e o que está de pé:**
+`log ajustado: piece_chest_wood de (-163,1, 44,9, -422,8) para (-163,1, 38,8, -422,8) - falls`, seguido de
+`fell 6,8 m and took 18 fall damage`. A verificação geométrica pós-run achou **984/985** justamente por causa dela. É o
+próximo alvo do tema vertical.
 
 ### 19. O early check planta poste de emergência **sem** dar chance ao `PullSupportBehind`
 Medido em 13/11/2026: **19 dos 20** postes de emergência saíram do early check (`Goto`, `MHR_Build.cs:6253`), que
@@ -544,6 +603,6 @@ na recusa; o poste fica como último recurso. Aceite: `apoio de emergência < 5`
 1. **Uma mudança por build**, com o corte de aceite escrito **antes** do run.
 2. **Reverter na hora** se `puladas > 0`, `desistindo > 0`, morte, `UNSUPPORTED` ou watchdog — o baseline fecha
    985/985 com 0, então qualquer um deles é regressão.
-3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1112** asserções); quem implementa não afrouxa a asserção.
+3. Regra pura vai para o harness **no mesmo ciclo** (hoje **1127** asserções); quem implementa não afrouxa a asserção.
 4. O que foi revertido fica **documentado com o número que o matou** (escopo XZ: ~33 min; `ahead` por frame: 38 vs 78
    peças/min; `CrossesPending`: 67 % do plano).

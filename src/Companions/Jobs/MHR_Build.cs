@@ -369,16 +369,11 @@ internal static class MHR_Build
 		/// worker (the group has its own, on the site).</summary>
 		internal float LastProgressAt;
 		internal int Passes;
-		/// <summary>13/11/2026 (the pieces given up come back): how many pieces the last recovery pass <b>placed</b>.
-		/// <c>-1</c> = no pass ran yet (the first one is always due); <c>0</c> = the last one placed nothing, so the pieces it
-		/// brought back found the wall they cannot pass and the walk stops asking (<see cref="BuildRecovery.Due"/>). Every pass
-		/// that places something earns the next - that is what makes a house with several unreachable pieces converge as its
-		/// structure closes.</summary>
-		internal int RecoveryPlaced = -1;
-		/// <summary>13/11/2026: how many recovery passes this order already ran (the cap is
-		/// <see cref="BuildRecovery.MaxPasses"/> - each pass appends its pieces to the plan, so the plan's growth has to be
-		/// bounded).</summary>
-		internal int RecoveryPasses;
+		/// <summary>13/11/2026 (the pieces given up come back): how many pieces this order has <b>placed</b> - the clock the
+		/// ladder's first rung reads (<see cref="BuildRecovery.Decide"/>): a given-up piece comes back after
+		/// <see cref="BuildRecovery.QueueGap"/> other pieces went up. Counted up by <see cref="CountPlaced"/> and never
+		/// reset; the per-piece stamp is <see cref="PlannedStep.SkippedAfter"/>.</summary>
+		internal int PlacedTotal;
 		/// <summary>E7: the square the site clearing covers (the plan's footprint, centred on the aim).</summary>
 		internal Vector3 ClearCenter;
 		internal float ClearSize;
@@ -564,6 +559,15 @@ internal static class MHR_Build
 		/// <summary>11/11/2026 (the storey barrier): how many times this piece was refused because a <b>body</b> was on the
 		/// spot - it never spends an attempt, so it is counted apart from <see cref="Tries"/>.</summary>
 		internal int Blocked;
+		/// <summary>13/11/2026 (the pieces given up come back): which rung of the ladder this piece already took -
+		/// 0 = never brought back, 1 = it came back after a few pieces, 2 = at the end of its storey, 3 = at the end of the
+		/// whole construction, and <see cref="BuildRecovery.MaxTries"/> is out for good. It lives on the <b>step</b> because
+		/// the step is the piece's identity (the retry pass appends the same object, never a copy).</summary>
+		internal int Recovered;
+		/// <summary>13/11/2026: the order's placement count (<see cref="State.PlacedTotal"/>) when this piece was first seen
+		/// <b>given up</b> - the clock of the ladder's first rung, "a new attempt after some other pieces went up". <c>-1</c>
+		/// = not stamped yet (the piece is not given up, or the walk has not looked at it since).</summary>
+		internal int SkippedAfter = -1;
 	}
 
 	private static readonly Dictionary<int, State> s_state = new Dictionary<int, State>();
@@ -1213,13 +1217,11 @@ internal static class MHR_Build
 		// the plan is a FORWARD-ONLY walk and the only way out of `SkippedIndices` was a piece already placed, so a piece that
 		// spent its three attempts was out for good even when the reason it failed stopped being true 200 pieces later. The
 		// measured case: two floors refused with `no progress` while the body was one storey below (the way up not built yet),
-		// and the house that finished around them is exactly what would have held them. When the walk reaches the END with
-		// pieces given up, they come back - lowest index first (the plan's own order, bottom-up), attempts and self-healing
-		// budget cleared. BuildRecovery holds the stop condition: a pass that places NOTHING is the last one.
-		if (RecoverSkipped(ai, state))
-		{
-			return true;
-		}
+		// and the house that finished around them is exactly what would have held them. The ladder is the player's own:
+		// a new attempt after a few other pieces went up, then at the end of the piece's storey, and only last at the end of
+		// the whole construction (BuildRecovery.Tier). It only puts the piece back in the plan - the walk below takes it like
+		// any other, so no frame jumps and no phase is left half-done.
+		RecoverDue(ai, state);
 		if (state.Plan != null && state.Blueprint != null)
 		{
 			PreferNearFloor(ai, state, state.Index + 1);
@@ -1936,18 +1938,12 @@ internal static class MHR_Build
 		{
 			state.PlacedIndices.Add(index);
 			state.SkippedIndices.Remove(index);
-			// 13/11/2026 (the pieces given up come back): the pass that brought the skipped pieces back is measured by
-			// what it PLACED - a pass that places nothing found the wall and is the last one (BuildRecovery.Due)
-			if (state.RecoveryPlaced >= 0)
-			{
-				state.RecoveryPlaced++;
-				if (state.Group != null)
-				{
-					MHR_BuildGroup.NoteRecoveryPass(state.Group, state.RecoveryPlaced);
-				}
-			}
+			// 13/11/2026 (the pieces given up come back): the order's placement count is the clock of the ladder's first
+			// rung - a given-up piece comes back after a few other pieces went up (BuildRecovery.QueueGap)
+			state.PlacedTotal++;
 			if (state.Group != null)
 			{
+				MHR_BuildGroup.NotePlaced(state.Group);
 				MHR_BuildGroup.MarkDone(state.Group, index);
 			}
 		}
@@ -3868,86 +3864,179 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
-	/// 13/11/2026 (the pieces given up come back): the plan is at its <b>end</b> and there are pieces this order gave up - they
-	/// enter the walk again, once, in plan order (see <see cref="BuildRecovery"/>). True = the order did <b>not</b> end: the
-	/// walk continues on the recovered piece.
+	/// 13/11/2026 (the pieces given up come back, the player's rule: <i>"peças faltando na construção não será tolerado"</i>):
+	/// the pieces this order gave up enter the walk again, on the <b>ladder</b> of <see cref="BuildRecovery.Tier"/> - a few
+	/// pieces after the failure, then at the end of their own storey, and only last at the end of the whole construction. True
+	/// = the walk is on a recovered piece now; the caller returns without taking the plain next one.
 	///
 	/// <para>Measured reason (solo run of <c>CommHomeBasicBP</c>, 13/11/2026): 983/985 with <c>hc_ai_blueprint_done</c>, the two
 	/// missing floors refused with <c>no progress</c> while the body was one storey below - the house that finished around them
-	/// is what would have held them. The player's rule: <i>"peças faltando na construção não será tolerado"</i>.</para>
+	/// is what would have held them. The player read it from the screenshot: <i>"aqueles dois ali que faltaram não iriam cair se
+	/// ele tivesse colocado, pois estariam ancorados nos das laterais"</i>, and then named the ladder: <i>"entra na fila pra uma
+	/// nova tentativa depois de umas outras 5 ~10 peças colocadas e depois no fim das peças do andar da blueprint e só por ultimo
+	/// no final de toda construção"</i>.</para>
 	///
-	/// <para>It is <b>not</b> blueprint-specific: it reads only "blueprint or not", the skipped set and the pass count, so any
-	/// plan the player loads gets the same second chance. A template and a single piece are out (they have no plan to return
-	/// to). The counters of the step are cleared, so the piece comes back with its <c>MaxPasses</c> intact - past
-	/// <see cref="BuildRecovery.MaxPasses"/> passes it is out for good and the ending says so.</para>
+	/// <para>It is <b>not</b> blueprint-specific: it reads only the storey of the piece (which every plan carries, template or
+	/// not) and the order's own counts, so any plan the player loads gets the same ladder. What changes between paths is the
+	/// <b>place</b>: a solo order moves the step inside the plan (rungs 1 and 2), a site only appends at the tail (its plan is
+	/// the group's and every worker walks it by index). The step's counters are cleared on the way back, so the piece comes back
+	/// with its attempts whole - the rung count (<c>Recovered</c>) is the piece's own cap, never the order's.</para>
+	///
+	/// <para>One recovery per call: the walk takes the recovered piece and comes back to this function after it, so no frame
+	/// moves several pieces and the plan is never reordered twice under the walk's feet.</para>
 	/// </summary>
-	private static bool RecoverSkipped(CompanionAI ai, State state)
+	private static bool RecoverDue(CompanionAI ai, State state)
 	{
-		if (state == null || state.Plan == null || state.Blueprint == null || state.Index + 1 < state.Plan.Count)
-		{
-			return false;   // not at the end of the plan (or no plan): the walk is the one that decides what is next
-		}
-		int skipped = state.Group != null ? MHR_BuildGroup.Skipped(state.Group) : state.SkippedIndices.Count;
-		int last = state.Group != null ? MHR_BuildGroup.RecoveryPlaced(state.Group) : state.RecoveryPlaced;
-		if (!BuildRecovery.Due(true, skipped, state.RecoveryPasses, last))
+		if (state == null || state.Plan == null || state.Blueprint == null || state.Index < 0
+			|| state.Index >= state.Plan.Count)
 		{
 			return false;
 		}
-		IEnumerable<int> given = state.Group != null ? (IEnumerable<int>)MHR_BuildGroup.SkippedSet(state.Group) : state.SkippedIndices;
-		List<int> back = BuildRecovery.Select(given, PlacedSet(state), 0);
-		if (back.Count == 0)
+		bool reorder = !PlanLocked(state);
+		PlannedStep curStep = state.Plan[state.Index];
+		float curLevel = curStep != null ? curStep.Level : float.NaN;
+		PlannedStep nextStep = state.Index + 1 < state.Plan.Count ? state.Plan[state.Index + 1] : null;
+		float nextLevel = nextStep != null ? nextStep.Level : float.PositiveInfinity;
+		List<int> given = SkippedOrdered(state);
+		if (given.Count == 0)
 		{
-			return false;   // every index of the skipped set is already up (a stale entry): nothing to bring back
+			return false;
 		}
-		int first = state.Plan.Count;
-		int reopened = 0;
-		for (int i = 0; i < back.Count; i++)
+		for (int i = 0; i < given.Count; i++)
 		{
-			int index = back[i];
-			if (index >= state.Plan.Count || state.Plan[index] == null)
+			int index = given[i];
+			PlannedStep step = state.Plan[index];
+			if (step == null || state.PlacedIndices.Contains(index))
+			{
+				continue;   // nothing to bring back, or a stale entry that is already up
+			}
+			int placedNow = state.Group != null ? Math.Max(0, MHR_BuildGroup.PlacedTotal(state.Group)) : state.PlacedTotal;
+			if (step.SkippedAfter < 0)
+			{
+				// the ladder's clock starts when the walk first SEES it given up (the site's count in a crew: a piece another
+				// companion put up is a piece of the house and it is what holds this one up)
+				step.SkippedAfter = placedNow;
+			}
+			int placedSince = placedNow - step.SkippedAfter;
+			BuildRecovery.Tier tier = BuildRecovery.Decide(true, reorder, step.Recovered, placedSince,
+				state.Index, state.Plan.Count, curLevel, nextLevel);
+			if (tier == BuildRecovery.Tier.None)
 			{
 				continue;
 			}
-			bool mine = state.SkippedIndices.Remove(index);
-			bool site = state.Group != null && MHR_BuildGroup.Reopen(state.Group, index);
-			if (!mine && !site)
+			return Reopen(ai, state, index, tier, placedNow);
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// Puts one given-up piece <b>back in the walk</b> on <paramref name="tier"/> (see <see cref="RecoverDue"/>): the counters
+	/// whole, the self-healing budget fresh, and the step moved to the place the rung names
+	/// (<see cref="BuildRecovery.InsertAt"/>). <paramref name="placedNow"/> is the order's placement count at this attempt - it
+	/// is the clock the <b>next</b> rung counts from, so a piece that fails again is not brought back to the same house.
+	/// </summary>
+	private static bool Reopen(CompanionAI ai, State state, int index, BuildRecovery.Tier tier, int placedNow)
+	{
+		PlannedStep step = state.Plan[index];
+		bool mine = state.SkippedIndices.Remove(index);
+		bool site = state.Group != null && MHR_BuildGroup.Reopen(state.Group, index);
+		if (!mine && !site)
+		{
+			return false;   // another worker already brought this one back: the piece exists once
+		}
+		// the piece comes back with the budget whole - it failed for a reason that is gone, not for a pose that is wrong
+		step.Tries = 0;
+		step.Dependency = 0;
+		step.Blocked = 0;
+		step.Recovered++;
+		step.SkippedAfter = placedNow;   // the next rung counts from THIS attempt
+		// the self-healing tools it may have spent are fresh again: the house around it changed, so the support pull, the
+		// emergency post and the pose adjustment are allowed to answer differently than they did the first time
+		state.PulledSupport.Remove(index);
+		state.FallbackPosts.Remove(index);
+		state.FallAdjusted.Remove(index);
+		int after = -1;
+		if (state.Group == null)
+		{
+			// a solo order: the step is MOVED inside the plan (rung 1: a few steps after the walk, rung 2: right after the
+			// walk, rung 3: the tail), and every index-bearing structure follows through Reorder. The walk itself does NOT
+			// jump: it goes on from where it was (the remapped index), so the pieces between the walk and the recovered one
+			// are still taken in their own time - which is exactly what "a new attempt after a few other pieces" means.
+			int at = BuildRecovery.InsertAt(tier, state.Index, state.Plan.Count);
+			if (at == index)
 			{
-				continue;   // another worker already brought this one back on this pass: one copy of the piece
+				// already where the rung wants it (the piece is still ahead of the walk): the walk reaches it in its own time,
+				// and this frame goes on with the plain next piece instead of claiming the piece was taken
+				Log(ai, "peça dada por perdida volta ao plano (" + TierName(tier) + "): " + step.Prefab + " em " + Pose(step.Pos)
+					+ " - tentativa " + step.Recovered + "/" + BuildRecovery.MaxTries);
+				ResetBarrier(state);
+				return false;
 			}
-			PlannedStep step = state.Plan[index];
-			// the piece comes back with the budget whole - it failed for a reason that is gone, not for a pose that is wrong
-			step.Tries = 0;
-			step.Dependency = 0;
-			step.Blocked = 0;
-			state.Plan.Add(step);   // the same object: `PieceIndex` maps the copy back to the first place (the piece's identity)
-			reopened++;
+			if (at > state.Index)
+			{
+				// every step except the recovered one, in the plan's own order, with the recovered step put back at `at`
+				List<int> order = new List<int>(state.Plan.Count);
+				for (int i = 0; i < state.Plan.Count; i++)
+				{
+					if (i != index)
+					{
+						order.Add(i);
+					}
+				}
+				int slot = at < order.Count ? at : order.Count;
+				order.Insert(slot, index);
+				Reorder(state, order);
+				after = slot;
+			}
 		}
-		if (reopened == 0)
+		if (after < 0)
 		{
-			return false;
+			// the tail (or a site): the same object is appended, and `PieceIndex` maps the copy back to its first place. The
+			// walk is already at the end (or the site's plan is not the worker's to move): the copy is reached when it gets there.
+			state.Plan.Add(step);
 		}
-		// the self-healing tools the piece may have spent are fresh again: the house around it changed, so the support pull,
-		// the emergency post and the pose adjustment are allowed to answer differently than they did the first time
-		for (int i = 0; i < back.Count; i++)
-		{
-			state.PulledSupport.Remove(back[i]);
-			state.FallbackPosts.Remove(back[i]);
-			state.FallAdjusted.Remove(back[i]);
-		}
-		Log(ai, "peças dadas por perdidas voltam ao plano: " + reopened + " de " + skipped + " (passe "
-			+ (state.RecoveryPasses + 1) + "/" + BuildRecovery.MaxPasses + ")");
-		state.RecoveryPasses++;
-		if (state.Group != null)
-		{
-			MHR_BuildGroup.NoteRecoveryPass(state.Group, 0);
-		}
-		else
-		{
-			state.RecoveryPlaced = 0;   // counted up by `CountPlaced` as the pass puts pieces up
-		}
-		state.Index = first - 1;
-		ResetBarrier(state);   // the walk goes back: the barrier drawn for the old end is not about this piece
+		Log(ai, "peça dada por perdida volta ao plano (" + TierName(tier) + "): " + step.Prefab + " em " + Pose(step.Pos)
+			+ " - tentativa " + step.Recovered + "/" + BuildRecovery.MaxTries);
+		ResetBarrier(state);   // the target of the walk changed: the barrier drawn for the old one is not about this piece
 		return true;
+	}
+
+	/// <summary>The ladder's rung as the log names it (PT-BR - the log lines are the player's language).</summary>
+	private static string TierName(BuildRecovery.Tier tier)
+	{
+		switch (tier)
+		{
+			case BuildRecovery.Tier.Queue:
+				return "depois de outras peças";
+			case BuildRecovery.Tier.Storey:
+				return "no fim do andar";
+			default:
+				return "no fim da obra";
+		}
+	}
+
+	/// <summary>The given-up pieces of the order in <b>plan order</b> (lowest index first: the plan is bottom-up, so a support
+	/// comes before what it holds), deduplicated, without negatives and without the ones already up. The single worker reads
+	/// its own set; a site reads the site's.</summary>
+	private static List<int> SkippedOrdered(State state)
+	{
+		List<int> chosen = new List<int>();
+		ISet<int> given = SkippedSet(state);
+		if (given == null || state.Plan == null)
+		{
+			return chosen;
+		}
+		foreach (int index in given)
+		{
+			if (index < 0 || index >= state.Plan.Count || state.Plan[index] == null
+				|| state.PlacedIndices.Contains(index) || chosen.Contains(index))
+			{
+				continue;
+			}
+			chosen.Add(index);
+		}
+		chosen.Sort();
+		return chosen;
 	}
 
 	/// <summary>

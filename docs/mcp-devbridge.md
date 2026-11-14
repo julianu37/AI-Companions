@@ -302,6 +302,10 @@ resolvia para o `Companion 2` porque o match era substring. Hoje o exato vence e
 
 ### Ciclo completo de um run de construção (build novo → run → números)
 
+**O procedimento completo - com os comandos exatos, na ordem, e o que conferir em cada passo - está em
+[`docs/re/ciclo-de-run-devbridge.md`](re/ciclo-de-run-devbridge.md).** É o documento a ler **antes** de começar um run;
+o resumo abaixo é a versão curta que vive junto do protocolo.
+
 Foi este ciclo que **custou tempo de verdade** em 12/11/2026, porque cada pedaço estava espalhado. A ordem importa:
 
 1. **Buildar e publicar o DLL.** `dotnet build Companions.sln -c Release` (sem `SkipDeploy`) copia o

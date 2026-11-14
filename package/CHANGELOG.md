@@ -23,13 +23,27 @@ good**, even when the reason it failed stopped being true two hundred pieces lat
 partial`, the way up not built yet), lost their attempts and were given up; the order then closed at **983/985** saying
 `hc_ai_blueprint_done`, and the finished house around them is exactly what would have held them — the player read it off
 the screenshot before the log was read: *"aqueles dois ali que faltaram não iriam cair se ele tivesse colocado, pois
-estariam ancorados nos das laterais"*. Now, at the **end** of the plan, the pieces that were given up enter the walk
-again — plan order (lowest first, which for a blueprint is bottom-up), attempts **and** the self-healing budget
-(support pull, emergency post, pose adjustment) cleared, so the second attempt is a different attempt, not a copy of the
-first. The pass repeats while it **places** something; a pass that places nothing is the last one, and the order then
-ends with the pieces the world actually refused named in the line. Not a rule for one blueprint: it reads only "is it a
-blueprint", the skipped set and the pass count. `AI/BuildRecovery.cs`, harness section **(am)**, 1112 assertions.
-Remaining work on the same theme: backlog 22 (the stair climbs to a storey that does not exist yet).
+estariam ancorados nos das laterais"*. The pieces now come back on a **three-rung ladder**, in the player's own words:
+*"entra na fila pra uma nova tentativa depois de umas outras 5 ~10 peças colocadas e depois no fim das peças do andar da
+blueprint e só por ultimo no final de toda construção"* — **(1)** six other pieces placed after the failure, while the
+storey is still being built; **(2)** when the walk is about to climb (`nextLevel > curLevel`), i.e. at the end of the
+piece's storey; **(3)** at the end of the whole construction. Every rung clears the attempts **and** the self-healing
+budget (support pull, emergency post, pose adjustment), and no rung after the first fires unless **something went up
+since the last attempt** — a piece that returns to an unchanged house meets the same refusal, and at the tail (where
+nothing is placed any more) it would be re-asked every frame. The cap is **per piece** (`MaxTries` = 3), so the ladder
+cannot loop. In a solo order the step is **moved inside the plan** with `Reorder` and the walk goes on from where it
+was — it never jumps the pieces in between; in a site (group) the plan is the group's and nobody reorders, so the only
+rung is the tail, by append. Not a rule for one blueprint: it reads only the storey (which every plan carries) and the
+order's own counts. `AI/BuildRecovery.cs`, harness section **(am)**, 1127 assertions.
+**Confirmed solo, 13/11/2026:** `CommHomeBasicBP`, 985 pieces, one companion — **985 placed**, 0 skipped in the final
+speech, `order ended: hc_ai_blueprint_done`, 0 deaths, **4,5 s** of measured waiting in 2 storey retentions (the
+previous run of the same house spent **1014,4 s** in 177). Both pieces the order gave up came back on **rung 1** — 6
+and 7 pieces later, `tentativa 1/3` — and stood on the first new attempt; the walk did not jump (the line right after
+the reorder is the piece that was already in progress). Verified after the run against the world: the site holds
+**1008 pieces = 985 of the plan + 23 emergency posts**, and an optimal per-prefab assignment matches **984 of 985** with
+a mean error of 0,19 m. The 985th is the one backlog 18 explains: a chest whose plan height is 44,9 was planted at 38,8
+(`log ajustado ... - falls`), the only occurrence in the run. Remaining work on the same theme: backlog 18 (that pose
+adjustment) and 22 (the stair climbs to a storey that does not exist yet).
 
 **The solo support fix, confirmed on a full house: 983/985 with the run reaching the end.** The
 985-piece house built by **one** companion ended with `hc_ai_blueprint_done`, **983** placed, **2** skipped,

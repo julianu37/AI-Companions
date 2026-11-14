@@ -142,6 +142,8 @@ because the downloaded models live there.
 `docs/roadmap.md` · `docs/plan-fases.md` (upstream map) · `docs/re/camada-ia-e-construcao.md` (AI + build history) ·
 `docs/re/building-notes.md` (measured build runs) · `docs/backlog-construcao.md` (queue) ·
 `docs/re/packaging-layout.md` · `docs/mcp-devbridge.md` (DevBridge protocol and test recipes) ·
+`docs/re/ciclo-de-run-devbridge.md` (**the run procedure**: close the game → build → `world_enter` → clean the site →
+`run_watch.py` → order → report; read it before starting a run, never re-derive it) ·
 `docs/re/stt-*.md`, `docs/re/tts-kokoro-sherpa-onnx.md` (local voice) · `docs/wiki/` (GitHub Wiki source) ·
 `.opencode/skills/` (domain skills: `bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`,
 `valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`, `valheim-assets`, `jotunn`).

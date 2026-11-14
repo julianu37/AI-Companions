@@ -118,9 +118,11 @@ internal static class MHR_BuildGroup
 		/// <summary>P1 (04/11/2026): when a piece of this site last went up - the stall watchdog counts from here (not
 		/// from the moment a worker entered a wait, which says nothing about the site moving).</summary>
 		internal float LastProgressAt;
-		/// <summary>13/11/2026 (the pieces given up come back): how many pieces the site's last recovery pass placed - <c>-1</c>
-		/// before the first one (<see cref="BuildRecovery.Due"/>).</summary>
-		internal int RecoveryPlaced = -1;
+		/// <summary>13/11/2026 (the pieces given up come back): how many pieces this <b>site</b> placed - the clock of the
+		/// ladder's first rung for the pieces given up with a group (<see cref="MHR_Build.PlacedTotal"/> is the same count on
+		/// the worker, and the site's is the one that is shared: a piece another companion put up is a piece of the
+		/// house).</summary>
+		internal int PlacedTotal;
 		/// <summary>
 		/// 11/11/2026 (the player's rule "build everything within reach first"): the meters the <b>site</b> walked to the pieces
 		/// it took - <c>MHR_Build.EnterStep</c> measures the body to the piece and sums it here (and in the worker's own
@@ -1534,28 +1536,28 @@ internal static class MHR_BuildGroup
 	}
 
 	/// <summary>
-	/// 13/11/2026 (the pieces given up come back): how many pieces the site's last <b>recovery</b> pass placed, <c>-1</c>
-	/// before the first one. The cap is one per <b>order</b>, not per worker: five workers reaching the end at the same time
-	/// must not turn one pass into five (<see cref="BuildRecovery.Due"/>).
+	/// 13/11/2026 (the pieces given up come back): how many pieces this site has <b>placed</b>, <c>-1</c> when there is no
+	/// site. It is the clock of the ladder's first rung (<see cref="BuildRecovery.Decide"/>): the site's count, because a
+	/// piece another companion put up is a piece of the house and it is what holds the given-up one up.
 	/// </summary>
-	internal static int RecoveryPlaced(string key)
+	internal static int PlacedTotal(string key)
 	{
 		Group group;
 		if (string.IsNullOrEmpty(key) || !s_groups.TryGetValue(key, out group) || group == null)
 		{
 			return -1;
 		}
-		return group.RecoveryPlaced;
+		return group.PlacedTotal;
 	}
 
-	/// <summary>13/11/2026: the site's recovery pass starts or advances - <paramref name="placed"/> is what the pass placed so
-	/// far (see <see cref="RecoveryPlaced"/>).</summary>
-	internal static void NoteRecoveryPass(string key, int placed)
+	/// <summary>13/11/2026: one piece of the site went up (called by <c>MHR_Build.CountPlaced</c> with the site's key) -
+	/// the clock of the recovery ladder advances.</summary>
+	internal static void NotePlaced(string key)
 	{
 		Group group;
 		if (!string.IsNullOrEmpty(key) && s_groups.TryGetValue(key, out group) && group != null)
 		{
-			group.RecoveryPlaced = placed;
+			group.PlacedTotal++;
 		}
 	}
 

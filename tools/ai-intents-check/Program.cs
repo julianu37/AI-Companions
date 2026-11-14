@@ -139,7 +139,7 @@ internal static class Program
 		new SectionDef("aj", "BuildFloorStart - o piso comeca na ponta da escada (e o terreo tambem)", FloorStarts),
 		new SectionDef("ak", "LandingFloors/SettledPieces - o piso so sobe com apoio de pe (e o solo ve o que o grupo ve)", LandingsAndSettled),
 		new SectionDef("al", "BuildOverweight - o companheiro sobrecarregado descarrega e continua a obra", OverweightUnloads),
-		new SectionDef("am", "BuildRecovery - a peca dada por perdida volta antes de a obra se dizer pronta", BuildRecoveries),
+		new SectionDef("am", "BuildRecovery - a peca dada por perdida volta na escada (outras pecas, fim do andar, fim da obra)", BuildRecoveries),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -3898,48 +3898,76 @@ internal static class Program
 	}
 
 	/// <summary>
-	/// Section (am): <see cref="BuildRecovery"/> - the piece the order gave up comes back to the plan until it stands. The
-	/// numbers are the measured run of 13/11/2026 (<c>CommHomeBasicBP</c>): 983 done, 2 given up, and the house that finished
-	/// around them is what would have held them.
+	/// Section (am): <see cref="BuildRecovery"/> - the piece the order gave up comes back to the plan, on the ladder the
+	/// player named (<i>"entra na fila pra uma nova tentativa depois de umas outras 5 ~10 peças colocadas e depois no fim das
+	/// peças do andar da blueprint e só por ultimo no final de toda construção"</i>). The numbers are the measured run of
+	/// 13/11/2026 (<c>CommHomeBasicBP</c>): 983 done, 2 given up, and the house that finished around them is what would have
+	/// held them.
 	/// </summary>
 	private static void BuildRecoveries()
 	{
-		// --- Due: who gets the second chance, and who does not
-		Check("blueprint com peca dada por perdida, nenhum passe ainda: a vez chegou", BuildRecovery.Due(true, 2, 0, -1));
-		Check("template nao tem plano para onde voltar", !BuildRecovery.Due(false, 2, 0, -1));
-		Check("nada foi dado por perdido: nao ha o que voltar", !BuildRecovery.Due(true, 0, 0, -1));
-		Check("conjunto negativo tambem nao", !BuildRecovery.Due(true, -1, 0, -1));
-		Check("passe anterior colocou peca: ha o proximo", BuildRecovery.Due(true, 2, 1, 1));
-		Check("passe anterior colocou 5: ha o proximo", BuildRecovery.Due(true, 2, 1, 5));
-		Check("passe anterior nao colocou NADA: acabou (a peca achou a parede dela)", !BuildRecovery.Due(true, 2, 1, 0));
-		Check("teto de passes: dois passos e o fim (o plano nao cresce sem limite)", !BuildRecovery.Due(true, 2, 2, 9));
-		Check("contagem de passes maior que o teto (bug): nao recupera", !BuildRecovery.Due(true, 2, 7, 9));
-		Check("contagem de passes negativa (bug): nao recupera", !BuildRecovery.Due(true, 2, -1, 1));
+		// --- Decide, rung 1: a new attempt after some other pieces went up
+		Check("nada foi colocado desde a falha: ainda nao", Tier(BuildRecovery.Tier.None, 0, 0, 10, 100, 0f, 0f));
+		Check("5 pecas colocadas: ainda nao (o piso e 6)", Tier(BuildRecovery.Tier.None, 0, 5, 10, 100, 0f, 0f));
+		Check("6 pecas colocadas: a vez chegou", Tier(BuildRecovery.Tier.Queue, 0, 6, 10, 100, 0f, 0f));
+		Check("10 pecas colocadas: continua valendo", Tier(BuildRecovery.Tier.Queue, 0, 10, 10, 100, 0f, 0f));
+		Check("peca do mesmo andar, nada subiu: a fila vale igual", Tier(BuildRecovery.Tier.Queue, 0, 6, 10, 100, 10f, 10f));
+		Check("contagem desconhecida (sitio que sobreviveu ao worker): vale agora", Tier(BuildRecovery.Tier.Queue, 0, -1, 10, 100, 0f, 0f));
 
-		// --- Select: lowest first, once each, and never a piece that is already up
-		CheckInts("a ordem do plano, do menor indice para o maior", new int[] { 3, 660, 679 },
-			Recover(new int[] { 679, 660, 3 }));
-		CheckInts("indice repetido entra uma vez so", new int[] { 5, 9 }, Recover(new int[] { 9, 5, 9, 5 }));
-		CheckInts("indice negativo nomeia nenhuma peca", new int[] { 4 }, Recover(new int[] { -1, 4 }));
-		CheckInts("peca ja de pe nao volta (o conjunto pode estar velho)", new int[] { 2 },
-			BuildRecovery.Select(new int[] { 2, 7 }, Set(7), 0).ToArray());
-		CheckInts("tudo ja de pe: nada volta", new int[0], BuildRecovery.Select(new int[] { 7, 8 }, Set(7, 8), 0).ToArray());
-		CheckInts("conjunto nulo: nada volta", new int[0],
-			BuildRecovery.Select(null, Set(), 0).ToArray());
-		CheckInts("o teto mantem os MENORES indices (o andar de baixo primeiro)", new int[] { 2, 3 },
-			BuildRecovery.Select(new int[] { 9, 3, 2 }, Set(), 2).ToArray());
+		// --- the storeys: rung 2 is "the walk is about to climb", never "the piece's own floor"
+		Check("a caminhada vai subir de andar: o fim do andar chegou", Tier(BuildRecovery.Tier.Storey, 1, 1, 40, 100, 10f, 12f));
+		Check("a caminhada continua no MESMO andar: nao e o fim dele", Tier(BuildRecovery.Tier.None, 1, 1, 40, 100, 10f, 10f));
+		Check("a caminhada desce (nada subiu): nao", Tier(BuildRecovery.Tier.None, 1, 1, 40, 100, 12f, 10f));
+		Check("a caminhada vai subir, mas nada foi colocado desde a ultima tentativa: nao", Tier(BuildRecovery.Tier.None, 1, 0, 40, 100, 10f, 12f));
+		Check("a caminhada vai subir e uma peca subiu desde a ultima tentativa: sim", Tier(BuildRecovery.Tier.Storey, 1, 1, 40, 100, 10f, 12f));
+		Check("sem proxima peca (o fim do plano) o fim do andar e o fim da obra", Tier(BuildRecovery.Tier.End, 1, 2, 99, 100, 10f, float.PositiveInfinity));
+		Check("proximo nivel que nao e numero: nunca conta como 'subiu'", Tier(BuildRecovery.Tier.None, 1, 2, 50, 100, 10f, float.NaN));
 
-		// --- the shape of the measured house: the two floors of the top storey that failed by `no progress`
-		//     plan order is bottom-up, so a floor comes back before anything above it
-		CheckInts("as duas lajes do run de 13/11: a 660 antes da 679", new int[] { 660, 679 },
-			Recover(new int[] { 679, 660 }));
-		Check("a ordem da recuperacao e a do plano, nao a do acaso", Recover(new int[] { 40, 5, 12 })[0] == 5);
+		// --- rung 3: the whole construction is up
+		Check("no fim do plano: o fim da obra chegou", Tier(BuildRecovery.Tier.End, 2, 1, 99, 100, 0f, float.PositiveInfinity));
+		Check("no fim do plano, nada colocado desde a ultima tentativa: espera outra peca subir", Tier(BuildRecovery.Tier.None, 2, 0, 99, 100, 0f, 0f));
+		Check("no fim do plano, primeira vez: vale (o plano ja acabou)", Tier(BuildRecovery.Tier.End, 0, 0, 99, 100, 0f, 0f));
+		Check("três tentativas tomadas: a peca esta fora, para sempre", Tier(BuildRecovery.Tier.None, 3, 50, 99, 100, 0f, 0f));
+		Check("contagem de tentativas negativa (bug): nao recupera", Tier(BuildRecovery.Tier.None, -1, 50, 99, 100, 0f, 0f));
+
+		// --- template, no plan, bad indexes
+		Check("template nao tem plano para onde voltar", !BuildRecovery.Decide(false, true, 0, 10, 5, 100, 0f, 0f)
+			.Equals(BuildRecovery.Tier.Queue));
+		Check("plano vazio: nada a fazer", BuildRecovery.Decide(true, true, 0, 10, 0, 0, 0f, 0f) == BuildRecovery.Tier.None);
+		Check("caminhada fora do plano (bug): nao", BuildRecovery.Decide(true, true, 0, 10, 100, 100, 0f, 0f) == BuildRecovery.Tier.None);
+		Check("caminhada negativa (bug): nao", BuildRecovery.Decide(true, true, 0, 10, -1, 100, 0f, 0f) == BuildRecovery.Tier.None);
+
+		// --- a SITE cannot move a step inside the plan: only the tail, and only when something went up since the last try
+		Check("sitio, no fim do plano, algo subiu: o fim da obra", TierSite(BuildRecovery.Tier.End, 0, 1, 99, 100));
+		Check("sitio, no fim do plano, nada subiu: espera", TierSite(BuildRecovery.Tier.None, 0, 0, 99, 100));
+		Check("sitio, no meio do plano: o plano e do grupo, ninguem reordena", TierSite(BuildRecovery.Tier.None, 0, 20, 40, 100));
+
+		// --- InsertAt: where the recovered piece lands
+		Check("fila: 6 passos depois da caminhada", BuildRecovery.InsertAt(BuildRecovery.Tier.Queue, 10, 100) == 17);
+		Check("fila: a caminhada perto do fim nao passa do fim", BuildRecovery.InsertAt(BuildRecovery.Tier.Queue, 96, 100) == 99);
+		Check("fim do andar: o proximo passo", BuildRecovery.InsertAt(BuildRecovery.Tier.Storey, 10, 100) == 11);
+		Check("fim do andar: a caminhada perto do fim nao passa do fim", BuildRecovery.InsertAt(BuildRecovery.Tier.Storey, 98, 100) == 99);
+		Check("fim da obra: o ultimo passo", BuildRecovery.InsertAt(BuildRecovery.Tier.End, 10, 100) == 99);
+		Check("plano vazio: nenhuma posicao", BuildRecovery.InsertAt(BuildRecovery.Tier.Queue, 0, 0) == -1);
+		Check("a peca NUNCA cai em cima da caminhada", BuildRecovery.InsertAt(BuildRecovery.Tier.Storey, 10, 100) > 10);
+
+		// --- the measured house: the two floors of the top storey that failed by `no progress`. Their storey is the one the
+		//     walk was on when the failure happened; the ladder gives them a new attempt at the end of that storey.
+		Check("as duas lajes do run de 13/11 ganham o fim do andar", Tier(BuildRecovery.Tier.Storey, 1, 3, 660, 985, 43.8f, 45.8f));
+		Check("e, falhando de novo, o fim da obra", Tier(BuildRecovery.Tier.End, 2, 1, 984, 985, 43.8f, float.PositiveInfinity));
 	}
 
-	/// <summary>Section (am): <see cref="BuildRecovery.Select"/> over a list of skipped indexes, no cap.</summary>
-	private static int[] Recover(int[] skipped)
+	/// <summary>Section (am): <see cref="BuildRecovery.Decide"/> on a <b>solo</b> order (a blueprint, and the plan can be
+	/// reordered) is the rung named.</summary>
+	private static bool Tier(BuildRecovery.Tier expected, int recovered, int placedSince, int walk, int plan, float cur, float next)
 	{
-		return BuildRecovery.Select(skipped, Set(), 0).ToArray();
+		return BuildRecovery.Decide(true, true, recovered, placedSince, walk, plan, cur, next) == expected;
+	}
+
+	/// <summary>Section (am): the same on a <b>site</b> (the plan is the group's, nobody reorders it).</summary>
+	private static bool TierSite(BuildRecovery.Tier expected, int recovered, int placedSince, int walk, int plan)
+	{
+		return BuildRecovery.Decide(true, false, recovered, placedSince, walk, plan, 0f, 0f) == expected;
 	}
 
 	// ============================================================================================ the plumbing
