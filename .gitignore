@@ -41,4 +41,6 @@ tools/mcp-devbridge/*-site.jsonl
 tools/mcp-devbridge/free-run-site-*.jsonl
 # rascunhos de analise de um run (despejos da cena, indices): dado de uma sessao, nao fonte
 tools/mcp-devbridge/scratch/
+# despejos da cena (build.pieces) de um run: a entrada do reconcile_scene.py, nao uma fonte
+tools/mcp-devbridge/scene-*.json
 tools/plan-probe/plan-dump.txt

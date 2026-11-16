@@ -2741,6 +2741,10 @@
             "value": "A {0} está de pé: {1} peças, {2} puladas."
         },
         {
+            "key": "hc_ai_blueprint_incomplete",
+            "value": "A {0} não ficou pronta: {1} de {2} peças não subiram ({3} faltando)."
+        },
+        {
             "key": "hc_ai_blueprint_unknown",
             "value": "Não conheço a build {0}. Tenho: {1}."
         },

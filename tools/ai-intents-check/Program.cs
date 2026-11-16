@@ -143,6 +143,10 @@ internal static class Program
 		new SectionDef("an", "BuildOverhead - a peca que fecha a tampa sobre a cabeca do proprio companheiro", OverheadLids),
 		new SectionDef("ao", "BuildArrival - um andar de baixo nao e 'cheguei' (a tolerancia do passo)", ArrivalLevels),
 		new SectionDef("ap", "BuildSupportBranch - movel sob o raio nao e prova de 'peca no chao'", SupportBranch),
+		new SectionDef("aq", "BuildStoreyGate - nada sobe com peca do andar de baixo pendente", StoreyGates),
+		new SectionDef("ar", "BuildRescue - o companheiro enjaulado sai do lugar (contado, nunca o jogador)", Rescues),
+		new SectionDef("as", "BuildRecovery/Finish - a obra nao fecha com peca faltando", IncompleteOrders),
+		new SectionDef("at", "BuildProgress - a obra retomada nao recaminha o que ja esta de pe", ResumeProgress),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -1942,6 +1946,249 @@ internal static class Program
 		Check("Elevated == 0,6 (o numero historico da sonda)",
 			Math.Abs(BuildSupportBranch.Elevated - 0.6f) < 0.0001f,
 			"Elevated " + BuildSupportBranch.Elevated.ToString("F1"));
+	}
+
+	/// <summary>Section (aq): <c>BuildStoreyGate</c> - <b>a piece of a storey above is never taken while a piece below is
+	/// still unresolved</b>. The cases are the solo run of 15/11/2026, measured: 653 of 985 placed, 135 given up, the body
+	/// frozen at <c>y = 39,9</c> while every remaining target was at <c>y = 42,8</c>.</summary>
+	private static void StoreyGates()
+	{
+		// 1) the defect itself: one piece of the ground floor pending and the plan wanted the first floor. The measured run
+		//    climbed here after 10 s of patience and left the holes the player photographed.
+		Check("1 peca pendente abaixo: o andar de cima nao e tomado",
+			!BuildStoreyGate.MayTake(40.8f, 1, false), "next 40,8, pending 1");
+		Check("63 pecas pendentes abaixo (o numero da linha 'volta antes de subir'): nao sobe",
+			!BuildStoreyGate.MayTake(40.8f, 63, false), "next 40,8, pending 63");
+
+		// 2) the other end: nothing below, the plan climbs exactly as before (81 of the 985 pieces of that house are floors
+		//    of the same storey - the gate must not touch them)
+		Check("nada pendente abaixo: sobe (o andar de baixo fechou)",
+			BuildStoreyGate.MayTake(40.8f, 0, false), "next 40,8, pending 0");
+
+		// 3) the temporary stair never unlocks the climb - it is the way to the piece BELOW, not a licence to go up
+		Check("o degrau disponivel nao libera a subida",
+			!BuildStoreyGate.MayTake(40.8f, 1, true) && BuildStoreyGate.MayTake(40.8f, 0, true),
+			"pending 1/0 with scaffolding");
+
+		// 4) NaN/Infinity (a template, a single piece: Level 0) never blocks anything - there are no storeys to respect
+		Check("nivel que nao e numero nunca segura o plano",
+			BuildStoreyGate.MayTake(float.NaN, 5, false) && BuildStoreyGate.MayTake(float.PositiveInfinity, 5, false),
+			"NaN / +Inf with 5 pending");
+
+		// 5) the same storey is NOT below: the wall of the 1st floor shares Level with the beam its tiles rest on (Run 10),
+		//    and holding a storey against itself would stop the plan dead
+		Check("mesmo andar nao conta como abaixo (a parede e a viga do Run 10)",
+			!BuildStoreyGate.Below(40.8f, 40.8f), "level 40,8 vs next 40,8");
+		Check("meio centimetro de diferenca ainda e o mesmo andar (o arredondamento do parser)",
+			!BuildStoreyGate.Below(40.8f, 40.805f), "level 40,8 vs next 40,805");
+		Check("1 m abaixo e abaixo",
+			BuildStoreyGate.Below(39.8f, 40.8f), "level 39,8 vs next 40,8");
+
+		// 6) a piece ABOVE the next one is not "below" either (the roof of the house under a floor of its own storey)
+		Check("peca acima nao e peca abaixo",
+			!BuildStoreyGate.Below(41.8f, 40.8f), "level 41,8 vs next 40,8");
+
+		// 7) the number the harness pins is the one the recovery ladder uses for the same question
+		Check("SameStorey == BuildRecovery.LevelEpsilon (uma copia da regra)",
+			Math.Abs(BuildStoreyGate.SameStorey - BuildRecovery.LevelEpsilon) < 0.00001f,
+			"SameStorey " + BuildStoreyGate.SameStorey.ToString("F2"));
+
+		// 8) 15/11/2026, the defect the first run of this cycle measured: the gate was asked with the piece's WORLD height
+		//    (Pos.y, 38,6) and answered against the plan's LOCAL Level (-2..6), so every piece of the house read as "below"
+		//    and the line printed "984 peca(s) pendente(s) abaixo" on the SECOND piece of 985. The two live in different
+		//    spaces; the gate only ever sees the plan's own key. This pins the shape: a local height compared with a world
+		//    one makes the whole plan pending.
+		float[] planLevels = { -2.0f, 0.0f, 0.0f, 1.0f, 1.0f, 3.0f };
+		float worldNext = 38.8f;   // the same piece's Pos.y - never the gate's input
+		int pendingWorld = 0;
+		int pendingLocal = 0;
+		foreach (float level in planLevels)
+		{
+			if (BuildStoreyGate.Below(level, worldNext))
+			{
+				pendingWorld++;
+			}
+			if (BuildStoreyGate.Below(level, 1.0f))
+			{
+				pendingLocal++;
+			}
+		}
+		Check("a altura do MUNDO nao serve de nivel do plano (todas as pecas parecem abaixo)",
+			pendingWorld == planLevels.Length, "pending with Pos.y " + pendingWorld + "/" + planLevels.Length);
+		Check("o Level local conta so o que esta de fato abaixo do andar",
+			pendingLocal == 3, "pending with Level 1,0 = " + pendingLocal + " (esperado 3: os de -2,0 e os dois de 0,0)");
+		Check("com o Level certo, o andar 1,0 e tomado assim que os dois de baixo sobem",
+			BuildStoreyGate.MayTake(1.0f, 0, false) && !BuildStoreyGate.MayTake(1.0f, pendingLocal, false),
+			"next Level 1,0");
+
+		// 9) 15/11/2026 (the measured regression of the run 21:58: 271 of 467 steps printed "a peça N/985 já está de pé"):
+		//    the storey barrier serves a piece OUT of plan order and counts it placed, so the walk that comes back to the
+		//    index it was going to take finds every piece the barrier placed in between still ahead of it - and walks to
+		//    each one to discover it is standing. A piece already in PlacedIndices must be stepped over, never re-walked.
+		//    The scenario is the measured one, in plan order: 190 was served by the barrier, 191 and 192 were placed
+		//    normally, and the walk resumed at 189 - so 190..192 are behind nobody and ahead of the walk.
+		var placed = new HashSet<int> { 190, 191, 192 };
+		int walked = 0;
+		int stepped = 0;
+		for (int i = 189; i <= 194; i++)
+		{
+			if (placed.Contains(i)) { stepped++; continue; }   // the fix: Advance steps over it
+			walked++;
+		}
+		Check("peca ja colocada nao e caminhada de novo (o bug das 271 linhas)",
+			stepped == 3 && walked == 3, "puladas " + stepped + ", caminhadas " + walked + " de 6");
+
+		// 10) the same run, the other defect the log named: the LAST pieces of the plan went up with
+		//     "46 peça(s) pendente(s) abaixo". The barrier used to drop itself after BodyRetryMaxWait and let the plan climb,
+		//     whatever was still pending. The clock now bounds the WAITING, never the climb: with a piece unresolved below,
+		//     the gate answers "no" no matter how long the barrier has been drawn.
+		Check("a paciencia da barreira nao compra a subida (46 pendentes abaixo do portao)",
+			!BuildStoreyGate.MayTake(40.8f, 46, false) && !BuildStoreyGate.MayTake(40.8f, 1, false),
+			"next 40,8 com 46 e com 1 pendente abaixo");
+	}
+
+	/// <summary>Section (ar): <c>BuildRescue</c> - <b>the caged companion leaves the place</b>, and only under the three
+	/// measured conditions. The cases are the solo run of 15/11/2026: <c>route partial</c> on 650 lines with the body at the
+	/// same pose for the whole tail of the order.</summary>
+	private static void Rescues()
+	{
+		// 1) the measured case: partial route for 30 s, the stair already failed, the body still for 30 s, a walk spot and
+		//    the whole budget left
+		Check("o caso medido: preso 30 s, sem rota e sem degrau -> resgata",
+			BuildRescue.Should(true, 30f, true, 30f, true, 0), "partial 30 s, still 30 s, spot, spent 0");
+
+		// 2) the clock: not yet. It is what keeps a companion that is walking the long way round a house from being teleported
+		Check("29 s de rota parcial: ainda nao",
+			!BuildRescue.Should(true, 29f, true, 30f, true, 0), "partial 29 s");
+		Check("rota parcial 30 s mas o corpo ainda anda: nao",
+			!BuildRescue.Should(true, 30f, true, 29f, true, 0), "still 29 s");
+
+		// 3) a COMPLETE route is a companion that is walking - it never teleports, however long it takes
+		Check("rota completa nunca resgata",
+			!BuildRescue.Should(false, 999f, true, 999f, true, 0), "partial false");
+
+		// 4) the stair is the honest way up and is always tried first: no rescue while it has not failed for this piece
+		Check("degrau ainda nao tentado: nao resgata (o degrau vem primeiro)",
+			!BuildRescue.Should(true, 999f, false, 999f, true, 0), "scaffoldTried false");
+
+		// 5) without a structural surface there is nowhere honest to go - the piece goes back to the queue instead
+		Check("sem walk spot: nao resgata",
+			!BuildRescue.Should(true, 999f, true, 999f, false, 0), "walkSpotOk false");
+
+		// 6) the cap of the player ("max. 3 por obra") and its meaning as the falsifier of the cycle
+		Check("orcamento: 2 gastos resgata, 3 gastos nao",
+			BuildRescue.Should(true, 30f, true, 30f, true, 2) && !BuildRescue.Should(true, 30f, true, 30f, true, 3),
+			"spent 2 / 3");
+
+		// 7) the bounds of the spot: the plan's own anchor, 40 m flat. A spot across the valley is not this order's
+		Check("spot dentro do sitio: vale",
+			BuildRescue.InBounds(39.9f), "flat 39,9");
+		Check("spot fora do sitio: nao vale",
+			!BuildRescue.InBounds(40.1f) && !BuildRescue.InBounds(float.NaN), "flat 40,1 / NaN");
+
+		// 8) the numbers the run is judged by are the ones the plan promised
+		Check("RoutePartialAfter == 30 e MaxPerOrder == 3 (o que o jogador escolheu)",
+			Math.Abs(BuildRescue.RoutePartialAfter - 30f) < 0.0001f && BuildRescue.MaxPerOrder == 3,
+			"RoutePartialAfter " + BuildRescue.RoutePartialAfter.ToString("F0") + ", MaxPerOrder " + BuildRescue.MaxPerOrder);
+	}
+
+	/// <summary>Section (as): <b>a blueprint order does not close with a piece missing</b> - the player's rule
+	/// "peças faltando na construção não será tolerado" / "ficar tentando até conseguir". The measured runs are the 13/11 one
+	/// (said <c>hc_ai_blueprint_done</c> with 10 missing) and the 15/11 one (135 given up when it was stopped).</summary>
+	private static void IncompleteOrders()
+	{
+		// 1) the ladder is spent only when EVERY given-up piece took all its rungs
+		Check("nenhuma peca dada por perdida: a escada acabou (nada a esperar)",
+			BuildRecovery.Exhausted(0, 0), "0/0");
+		Check("1 de 1 no ultimo degrau: acabou",
+			BuildRecovery.Exhausted(1, 1), "1/1");
+		Check("135 dadas por perdidas com 134 no ultimo degrau: ainda ha degrau",
+			!BuildRecovery.Exhausted(134, 135), "134/135");
+		Check("todas as 135 no ultimo degrau: acabou",
+			BuildRecovery.Exhausted(135, 135), "135/135");
+
+		// 2) the ladder's own cap is the number the exhaustion counts against - a second copy would let a piece loop for ever
+		Check("MaxTries == 3 (o teto dos degraus da peca)",
+			BuildRecovery.MaxTries == 3, "MaxTries " + BuildRecovery.MaxTries);
+
+		// 3) the invariant the whole section exists for: a piece that still has a rung left at the tail is brought back
+		//    rather than the order closing. At the tail, rung 3 needs "something went up since the last attempt".
+		Check("fim do plano com peca no 1o degrau: ela volta (nada fecha)",
+			BuildRecovery.Decide(true, true, 0, BuildRecovery.QueueGap, 984, 985, 44.8f, 44.8f)
+				== BuildRecovery.Tier.End,
+			"recovered 0, tail, changed");
+		Check("fim do plano com a peca no ultimo degrau: nao volta",
+			BuildRecovery.Decide(true, true, BuildRecovery.MaxTries, 99, 984, 985, 44.8f, 44.8f)
+				== BuildRecovery.Tier.None,
+			"recovered MaxTries, tail");
+		Check("no meio do plano, sem peca colocada desde a falha: nao volta (o teto do re-tentar)",
+			BuildRecovery.Decide(true, true, 0, 0, 100, 985, 40.8f, 40.8f) == BuildRecovery.Tier.None,
+			"recovered 0, placedSince 0, mid-plan");
+	}
+
+	/// <summary>Section (at): <c>BuildProgress</c> - <b>the resumed order knows what is already standing</b>. The cases are
+	/// the solo run of 15/11/2026: at piece 854 the companion fell 6,9 m and died and the resumed order walked the house
+	/// from piece 1, one <c>já está de pé</c> line per piece it had already built (the player: <i>"ele deveria saber quais
+	/// estão colocadas corretamente depois que ele colocar a porra da peça"</i>).</summary>
+	private static void ResumeProgress()
+	{
+		// 1) the measured case: 862 pieces of a 985-piece house were standing when the body died. The resumed order has
+		//    walked 0 of them - all 862 are behind it from the first frame.
+		var savedPlaced = new HashSet<int>();
+		for (int i = 0; i < 862; i++)
+		{
+			savedPlaced.Add(i);
+		}
+		var placed = new HashSet<int>();
+		var skipped = new HashSet<int>();
+		int total = BuildProgress.Restore(placed, skipped, savedPlaced, new int[0], 985);
+		Check("862 pecas de pe atravessam a morte (a obra retomada nao recaminha)",
+			placed.Count == 862 && total == 862, "restauradas " + placed.Count + ", PlacedTotal " + total);
+		int walked = 0;
+		for (int i = 0; i < 985; i++)
+		{
+			if (!placed.Contains(i))
+			{
+				walked++;
+			}
+		}
+		Check("so as 123 que faltavam sao caminhadas",
+			walked == 123, "a caminhar " + walked + " de 985");
+
+		// 2) nothing to carry (a pending written before the rule, a single piece): the set of the fresh state is kept and
+		//    the count is its own - the resume behaves exactly as before, byte for byte
+		var mine = new HashSet<int> { 7, 8 };
+		int kept = BuildProgress.Restore(mine, new HashSet<int>(), null, null, 985);
+		Check("sem conjunto salvo nada e apagado (a retomada de antes)",
+			mine.Count == 2 && kept == 2, "mantidas " + mine.Count + ", PlacedTotal " + kept);
+
+		// 3) the ladder's whole point, carried across: a piece given up and then put up is PLACED, never both. The saved
+		//    sets come from a live state that already kept this; the carry must not resurrect the old skip.
+		var placedBoth = new HashSet<int>();
+		var skippedBoth = new HashSet<int>();
+		int both = BuildProgress.Restore(placedBoth, skippedBoth, new[] { 5, 6, 7 }, new[] { 6, 9 }, 985);
+		Check("peca dada por perdida e depois colocada e so colocada (os conjuntos nao se cruzam)",
+			both == 3 && placedBoth.Count == 3 && skippedBoth.Count == 1 && skippedBoth.Contains(9) && !skippedBoth.Contains(6),
+			"colocadas " + placedBoth.Count + ", puladas " + skippedBoth.Count);
+
+		// 4) an index outside the plan names no step: it is dropped instead of marking a DIFFERENT piece as done (a resumed
+		//    order rebuilt from a plan that lost lines - BuildBlueprintSkip - shifts every index after the hole)
+		var outOfRange = new HashSet<int>();
+		var outSkipped = new HashSet<int>();
+		BuildProgress.Restore(outOfRange, outSkipped, new[] { 0, 984, 985, 1200, -1 }, new[] { 985 }, 985);
+		Check("indice fora do plano nao marca outra peca",
+			outOfRange.Count == 2 && outOfRange.Contains(0) && outOfRange.Contains(984) && outSkipped.Count == 0,
+			"guardadas " + outOfRange.Count + ", puladas " + outSkipped.Count);
+
+		// 5) planCount <= 0 is "the plan is not built yet" (a template lays its steps out in a later phase): nothing is
+		//    filtered, because there is no range to filter against
+		Check("plano ainda nao montado: nada e filtrado",
+			BuildProgress.InPlan(500, 0) && BuildProgress.InPlan(0, 0) && !BuildProgress.InPlan(-1, 0),
+			"InPlan(500, 0)");
+
+		// 6) the edge of the range, literally
+		Check("o ultimo indice do plano e valido, o plano inteiro nao",
+			BuildProgress.InPlan(984, 985) && !BuildProgress.InPlan(985, 985), "InPlan(984/985, 985)");
 	}
 
 	/// <summary>Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has

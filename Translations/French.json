@@ -2741,6 +2741,10 @@
             "value": "La {0} est debout : {1} pièces, {2} ignorées."
         },
         {
+            "key": "hc_ai_blueprint_incomplete",
+            "value": "La {0} n'est pas terminée : {1} pièces sur {2} ne sont pas montées ({3} manquantes)."
+        },
+        {
             "key": "hc_ai_blueprint_unknown",
             "value": "Je ne connais pas la construction {0}. J'ai : {1}."
         },

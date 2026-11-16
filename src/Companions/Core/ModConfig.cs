@@ -995,7 +995,7 @@ internal static class ModConfig
 		BuildQuiet = Bind(cfg, "Building", "Quiet", false, "Do not make the placement noise (the game adds one when a piece goes up, which can pull creatures). Only the hand-written placement path is silenced; the vanilla Player.PlacePiece path keeps its noise.");
 		BuildLevelGround = Bind(cfg, "Building", "LevelGround", true, "Level the ground before a structure (a plan) when it is uneven: a house of 8x8 needs a flat area, and the walls and roof are all at the anchor's height. It uses the game's own leveling (the hoe's level operation) and needs a hoe in the companion's bag - without one it says so and the order ends.");
 		BuildClearSite = Bind(cfg, "Building", "ClearSite", true, "Clear the build site before the first piece: the trees, stumps and fallen logs inside the plan's footprint are cut (the same directed harvest the radial uses) and the wood goes to the bag the build pays from. The ground under them is not changed - leveling is its own step (LevelGround). Up to 40 obstacles / 240 s per order; what is left is handled by the piece retry.");
-		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", false, "Off by default (the test of 03/11/2026 covered the site in stairs). In a blueprint, after 12 s without getting closer, place a temporary wood stair (2 wood) when the piece is above the placement reach ([Building] PlaceReach - vanilla 5 m) - a ridge, the top of a gable, the last row of a roof. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is removed at the end of the order (it is not part of the plan). At most 4 per order and the stair is removed as soon as the piece it was placed for goes up; each stair is +1 m. A stair is kept only when a piece placed next to it has no support without it.");
+		BuildTempScaffold = Bind(cfg, "Building", "TempScaffold", true, "A temporary wood stair (2 wood) for the piece the companion cannot reach from where it stands - the way out of a body caged on a storey, and the honest way up to a ridge, the top of a gable or the last row of a roof. Turned back ON in 15/11/2026 after the measured run (985 pieces, 0 stairs placed and a companion stuck one storey below everything left in the plan): it only fires after 12 s without getting closer AND when the piece is beyond the placement reach. The stair is a ramp the companion walks up, it is paid from the bag/chests like any piece and the wood comes back when it is taken down - at the end of each storey, at the end of the order, or as soon as the piece it was placed for goes up. It is not part of the plan. At most 12 per order (a stair the companion stands on, or one holding a placed piece up, is kept). Off: a piece out of reach goes back to the queue instead.");
 		BuildBlueprintFree = Bind(cfg, "Building", "BlueprintFree", false, "Build a blueprint without paying for the pieces (a test/creative switch: the companion places the pieces from the file and takes nothing from the bag or the chests). Off by default - a blueprint costs the same as any other build.");
 		BuildBlueprintStations = Bind(cfg, "Building", "BlueprintStations", true, "A blueprint builds without crafting stations: none is planned and a piece is not refused for a missing station. Off = the vanilla rule. Templates and single-piece orders always need the station.");
 		BuildBlueprintMaxPieces = Bind(cfg, "Building", "BlueprintMaxPieces", 2000, "Refuse a blueprint with more pieces than this (a guard against a huge or broken file). The message says the file has more pieces than the limit.", new AcceptableValueRange<int>(1, 20000));
@@ -1283,8 +1283,10 @@ internal static class ModConfig
 
 	/// <summary>1.9.5 (auditoria C2): the version of the config migrations this build knows about. Bump it whenever a
 	/// new one-time migration is added: a file stamped with an older value runs the migration block once more (they are
-	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.</summary>
-	private const int CurrentConfigVersion = 199;
+	/// all "only the EXACT old default" rules, so running them again is harmless) and gets the new stamp.
+	/// <para>200 (15/11/2026): the temporary stair came back ON (a file holding the 03/11 legacy `false` is moved), so the
+	/// block has to run one more time for a config already stamped 199.</para></summary>
+	private const int CurrentConfigVersion = 200;
 
 	/// <summary>1.9.5 (auditoria C2): should the one-time default migrations run on this boot? They used to run on
 	/// <b>every</b> boot, which quietly undid a choice the player made back to an old default (set the silence
@@ -1433,10 +1435,14 @@ internal static class ModConfig
 			VozPromptInitial.Value = (string)VozPromptInitial.DefaultValue;
 			moved.Add("VoiceInitialPrompt");
 		}
-		// E7 (test of 03/11/2026: "the site filled with stairs"): the temporary stair was born ON in this same release and is
-		// now OFF - a .cfg written by that build still holds true, which would keep it on for exactly the player who
-		// reported it. Runs even when the language moves found nothing.
-		MovedDefaultBool(BuildTempScaffold, true, "a escadinha provisoria encheu o sitio no teste de 03/11/2026 - agora nasce desligada");
+		// E7 (test of 03/11/2026: "the site filled with stairs"): the temporary stair was born ON in this same release, was
+		// turned OFF, and is ON again in 15/11/2026 - the measured run of the CommHomeBasicBP placed 985 pieces with 135 given
+		// up and a body caged one storey below everything left, because the stair could never fire. The migration is now
+		// dropped on purpose: a file still holding the old `false` is moved to the new default, so the player who never
+		// touched the switch gets the tool that keeps the companion out of the cage. The "site filled with stairs" defect of
+		// 03/11/2026 was a budget PER PIECE; that is what MaxScaffolds still prevents, and the stairs now come down at the
+		// end of every storey (MHR_Build.EnterStep).
+		MovedDefaultBool(BuildTempScaffold, false, "o degrau provisorio e a saida do companheiro enjaulado - agora nasce ligado, e sai ao fim de cada andar");
 		if (moved.Count == 0)
 		{
 			return;

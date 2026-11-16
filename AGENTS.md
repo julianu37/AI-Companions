@@ -9,17 +9,18 @@ IA** (LLM/voz/fala) + **localização** por cima.
 > **Este arquivo é uma referência operacional, não um diário.** O histórico detalhado mora em `docs/`. Se você precisa
 > do "porquê" de uma decisão da construção/IA, **não** invente: leia o doc apontado no fim deste arquivo.
 
-## Estado agora (medido em 11/11/2026)
+## Estado agora (medido em 16/11/2026)
 
 | item | valor |
 |---|---|
 | versão | **1.9.6** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` já tem a seção `1.9.7 - in progress` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **1127 PASS / 0 FAIL** em **40 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
+| harness (redes por palavras + tabelas puras) | **1203 PASS / 0 FAIL** em **47 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
 | MCP mock (sem jogo) | **135 PASS / 0 FAIL** |
+| reconciliacao cena x blueprint | `python tools/test_reconcile_scene.py` → **5 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/piso-apoio` (a linha de release é a `main`) |
+| branch de trabalho | `fix/construcao-enjaulada` (a linha de release é a `main`) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 

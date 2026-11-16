@@ -2741,6 +2741,10 @@
             "value": "La {0} è in piedi: {1} pezzi, {2} saltati."
         },
         {
+            "key": "hc_ai_blueprint_incomplete",
+            "value": "La {0} non è finita: {1} pezzi su {2} non sono saliti ({3} mancanti)."
+        },
+        {
             "key": "hc_ai_blueprint_unknown",
             "value": "Non conosco la costruzione {0}. Ho: {1}."
         },

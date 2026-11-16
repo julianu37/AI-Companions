@@ -203,6 +203,11 @@ POST_NO_MATERIAL = re.compile(r"^sem material para o apoio de emergência sob ")
 DIED = re.compile(r"^it died during the build - the order resumes after the respawn \(piece (?P<i>\d+)/(?P<n>\d+)\)")
 # veredito do jogo :6812
 UNSUPPORTED = re.compile(r"^UNSUPPORTED: (?P<prefab>\S+) \(support (?P<detail>[^)]*)\)")
+# 15/11/2026: o resgate do companheiro enjaulado (teleporte contado, MHR_Build.TryRescue) - a linha diz quantos
+# ja foram gastos e o teto, entao o ultimo resgate do run e o que o relatorio reporta
+RESCUE = re.compile(
+    r"^pulando o caminho: preso ha (?P<secs>[^ ]+) s sem rota e sem degrau que resolvesse - "
+    r"vou direto para a superficie (?P<pos>\([^)]*\)) .*\(resgate (?P<n>\d+)/(?P<max>\d+)\)")
 # a linha unica do Finish (:7601) - dispersao + step-aside + espera
 WAIT = re.compile(
     r"^dispersão: (?P<skipped>\d+) adiada\(s\), (?P<resumed>\d+) retomada\(s\) \u00b7 "
@@ -292,6 +297,7 @@ def parse_message(msg):
         ("post_no_material", POST_NO_MATERIAL),
         ("died", DIED),
         ("unsupported", UNSUPPORTED),
+        ("rescue", RESCUE),
         ("wait", WAIT),
         ("spread_detail", SPREAD_DETAIL),
         ("wait_unknown", WAIT_UNPARSED),
@@ -461,6 +467,8 @@ def finalize(block, index, barrier_seconds):
     post_no_material = 0
     deaths = 0
     unsupported = 0
+    rescue_seen = 0
+    rescue_cap = 0
     body_piece = 0
     aside_ask = 0
     aside_no_room = 0
@@ -519,6 +527,14 @@ def finalize(block, index, barrier_seconds):
             deaths += 1
         elif kind == "unsupported":
             unsupported += 1
+        elif kind == "rescue":
+            # 15/11/2026: a linha diz "resgate N/max" - o maior N e o numero de teleportes da obra e o maior
+            # `max` e o teto que a build daquela run usava (o teto vive no codigo, nao no relatorio)
+            try:
+                rescue_seen = max(rescue_seen, int(m.group("n")))
+                rescue_cap = max(rescue_cap, int(m.group("max")))
+            except (TypeError, ValueError):
+                pass
         elif kind == "wait":
             wait_lines += 1
             w = who or "(sem nome)"
@@ -648,6 +664,8 @@ def finalize(block, index, barrier_seconds):
         "emergency_refused": {"no_place": post_no_place, "no_material": post_no_material},
         "deaths": deaths,
         "unsupported": unsupported,
+        "rescues": rescue_seen,
+        "rescue_cap": rescue_cap,
         "wait": {
             "lines": wait_lines,
             "unparsed": wait_unparsed,
@@ -766,6 +784,10 @@ def print_order(o, total_orders, out):
           % (o["watchdog_calls"], o["watchdog_dropped"]), file=out)
     print("   mortes (\"it died\"): ......... %d" % o["deaths"], file=out)
     print("   UNSUPPORTED: ................ %d" % o["unsupported"], file=out)
+    # 15/11/2026: o teleporte do resgate. O teto e 3 por obra e o numero e o FALSIFICADOR do ciclo: se ele
+    # encostar no teto, o degrau temporario nao esta funcionando e o run reprova mesmo com 0 puladas.
+    print("   resgates (teleporte): ....... %d (teto %s por obra)"
+          % (o["rescues"], o["rescue_cap"] if o["rescue_cap"] else "3"), file=out)
     print("   apoio de emergência: ........ %d colocado(s) | %d sem lugar | %d sem material"
           % (o["emergency_posts"], o["emergency_refused"]["no_place"],
              o["emergency_refused"]["no_material"]), file=out)

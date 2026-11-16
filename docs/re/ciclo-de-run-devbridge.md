@@ -131,30 +131,50 @@ apoios de emergência, queda, morte, a linha final (`order ended: hc_ai_blueprin
 O relatório sai do **log** e conta intenção. A prova de que a obra está completa é a **cena**, peça por peça:
 
 ```python
-call_bridge("build.pieces", x=-158.9, z=-427.7, radius=40)   # salvar em scratch/scene-<run>.json
+call_bridge("build.pieces", x=-158.9, z=-427.7, radius=40)   # salvar em tools/mcp-devbridge/scene-<run>.json
 ```
 
-O ajuste cena↔blueprint é sempre o **mesmo problema** e tem uma receita que funciona — **sem semente**:
+```powershell
+python tools/reconcile_scene.py `
+    --blueprint "<plugin folder>\blueprints\CommHomeBasicBP.blueprint" `
+    --scene tools/mcp-devbridge/scene-<run>.json
+#   exit 0 = toda peça do plano está na cena (ou tem um extra do mesmo prefab por perto)
+#   exit 1 = falta peça de verdade (lista cada uma)   |   exit 2 = entrada ilegível
+```
 
-1. Ler o `.blueprint` (`prefab;categoria;x;y;z;…`, coordenadas **locais**) e a cena (mundiais).
-2. Varrer o yaw de **0 a 360°** (passo 1°), com a translação **ancorada na diferença de centróides**:
-   `tx = sx − (cosθ·mx + sinθ·mz)`, `ty = sy − my`, `tz = sz − (−sinθ·mx + cosθ·mz)`.
-3. Atribuição gulosa por prefab com tolerância **0,45 m**; guardar o yaw de maior contagem.
-4. Polir: refinar o yaw (±1,2° em passo 0,1; depois ±0,12° em passo 0,02) e, a cada passo, deslocar a
+O ajuste cena↔blueprint é sempre o **mesmo problema** e é resolvido pelo script, **sem semente**:
+
+1. Ler o `.blueprint` (`prefab;categoria;x;y;z;…`, coordenadas **locais**) e a cena (mundiais). O nome do
+   prefab na cena vem como `<prefab>(Clone)` — o script normaliza, comparar cru dá **0 pares em todo yaw**.
+2. Varrer o yaw de **0 a 360°** (passo 1°) e, em cada yaw, **votar na translação**: cada par
+   (peça da cena × peça do plano girada) vota numa célula de 0,5 m em (x, y, z); a célula com mais votos
+   é o deslocamento daquele yaw. Atribuição gulosa por prefab com tolerância **0,45 m**.
+3. Polir: refinar o yaw (±1,2° em passo 0,1; depois ±0,12° em passo 0,02) e, a cada passo, deslocar a
    translação pela **mediana** do resíduo; parar quando o passo for < 1e-4.
 
-**Valide o método antes de acreditar nele:** rode-o no run **anterior** (do qual já se conhece o número) e
-confira que ele reproduz a contagem histórica. Nesta run ele reproduziu **964/985** no run C e deu
-**983/985** na cena nova.
+**A translação por centróide da receita antiga não serve para uma cena parcial.** Ela ancora
+`t = centróide_cena − R·centróide_plano`, o que só é verdade quando a cena tem o plano **inteiro**: numa cena
+capturada no meio da obra (219 de 985 peças, run de 15/11/2026) o centróide é o do andar que existe e nenhum
+yaw cai em lugar nenhum — medido: **4 casadas**. Com o voto 3D o mesmo par plano/cena casa **217 de 219**
+(yaw 344°, resíduo máximo 349 mm, ~7 s).
 
 **Por que "sem semente" não é preciosismo:** o yaw muda de run para run porque a posição do jogador muda —
-105° nesta, ~46° no run C. Um ajuste semeado pela solução anterior casa **78** peças e um ICP que parte dele
-**diverge** para uma bacia espelhada (473 pares, yaw −45°). Um ajuste semeado não é evidência.
+344° nesta, 105° no run de 13/11, ~46° no run C. Um ajuste semeado pela solução anterior casa **78** peças e um ICP
+que parte dele **diverge** para uma bacia espelhada (473 pares, yaw −45°). Um ajuste semeado não é evidência.
 
-**Como ler o resultado:** as peças que sobram geralmente **não** são peças faltando. Nesta run sobraram 2 —
-as **únicas duas** peças do plano em `y = -2.00` (fundação enterrada), presentes na cena **0,97 m acima** do
-plano, assentadas no terreno que é mais alto ali. Confira sempre se o "faltante" tem um "extra" do **mesmo
-prefab** a uma distância plausível: 2 faltantes + 2 extras do mesmo prefab = **0 faltando**.
+**Como ler o resultado:** `faltantes sem explicação` é a métrica de aceite. As peças que sobram geralmente
+**não** são peças faltando: no run de 13/11 sobraram 2 — as **únicas duas** peças do plano em `y = -2.00`
+(fundação enterrada), presentes na cena **0,97 m acima** do plano, assentadas no terreno que é mais alto ali. O
+script procura esse caso sozinho (um "faltante" com um "extra" do **mesmo prefab** a até 3× a tolerância é
+explicado) e só as sem explicação reprovam o run.
+
+**A comparação do "extra" é no espaço do MUNDO.** O plano guarda coordenada **local**; a peça faltante tem de
+passar pelo **mesmo transform** do casamento (yaw + translação) antes de ser medida contra a cena. Comparar a
+coordenada local crua com a mundial dá centenas de metros e **explica tudo** — foi o defeito do run de 16/11/2026,
+que deu `exit 0` com uma peça 6,2 m abaixo do plano. O `reconcile_scene.py` tem teste próprio
+(`python tools/test_reconcile_scene.py`, 5 casos, incluindo a peça arrastada por uma queda) **e ele precisa rodar
+sempre que a reconciliação reprovar ou aprovar um run** — o instrumento é a prova, e um instrumento sem teste já
+aprovou um run com buraco.
 
 ## Depois do run
 

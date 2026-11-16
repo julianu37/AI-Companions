@@ -201,6 +201,79 @@ pré-requisito para saber qual dos dois é.
 raso e a queda é curta; no íngreme o deck sobe e a mesma peça vira armadilha. **Não** é um defeito que se vê no run
 de teste (lá o `DeckLift` é absorvido pelo terreno plano).
 
+**[M] 15/11/2026 — a queda medida de novo, e o que ela custa de verdade.** Run solo do `CommHomeBasicBP` no sítio
+`-158,9, -427,7`: **duas** quedas, `6,5 m / 16 de dano` (peça 820, `log ajustado: wood_beam_45 de (…, 44,8, …) para
+(…, 38,6, …) - falls`) e `6,9 m / 18 de dano` (peça 854, a que matou). Com **25** de vida máxima, 16 de dano já
+deixa o corpo em 9 — a segunda queda **não precisou ser grande para matar**. As duas aconteceram no **terceiro
+andar** (y=44,8 → y=38,6, o rés-do-chão), e o `log ajustado` da primeira mostra o mecanismo: o `AdjustFallenPose`
+procurou outra pose depois da queda 1, moveu a peça para o **chão** (38,6) e o companheiro andou até lá — o custo
+da queda não é só o dano, é a peça do andar de cima colocada no térreo.
+
+A consequência que o jogador viu não é a queda em si: foi o **estado do plano**. A ordem retomou no respawn
+(`back from the dead - resuming the build at piece 854`) e recomeçou a caminhar da **peça 1**, imprimindo
+`a peça N/985 já está de pé` mais de 120 vezes, porque `Pending` levava o plano, o índice e a fila de retry mas
+**não** os conjuntos de progresso (`PlacedIndices`/`SkippedIndices`). Isso está corrigido neste ciclo
+(`AI/BuildProgress.cs` + `MHR_Build.RestoreProgress`); **a prevenção da queda continua aberta**, e agora tem um
+segundo dado a favor do diagnóstico acima: a segunda queda é igual à primeira, na mesma borda do terceiro andar.
+
+**[M] 16/11/2026 — o run seguinte: a queda de novo (3ª vez, mesma borda) e a prova de que a retomada está certa.**
+Run solo do mesmo `CommHomeBasicBP`, mesmo sítio, DLL reconstruída com `BuildProgress`/`RestoreProgress`. **Cinco
+quedas, uma morte**, e a que matou é a **mesma peça-e-borda** das anteriores:
+
+```
+[Build] Companion: next: piece_chest_wood (851/985) a 3,5 m
+[Build] Companion: log ajustado: piece_chest_wood de (-156,6, 44,9, -421,6) para (-156,6, 38,8, -421,6) - falls
+[Move]  "Companion" fell 6,7 m and took 17 fall damage
+[Build] Companion: it died during the build - the order resumes after the respawn (piece 851/985)
+```
+
+O `log ajustado … 44,9 → 38,8` é o mecanismo do item 11 visto de novo: o andar de cima está a **y=44,9** e o
+rés-do-chão a **38,8**, então a borda aberta do andar em construção é uma queda de **6,1 m** — com 25 de vida,
+17 de dano não mata de primeira, mas mata na segunda. **A prevenção continua aberta; o item 11 tem agora três
+medições independentes, todas na borda do andar mais alto, todas com o mesmo `log ajustado` arrastando a peça
+para o térreo.**
+
+**O que este run fechou é o outro lado do item:** a retomada depois da morte **não recaminha mais a obra**. No
+respawn o log vai direto ao trabalho:
+
+```
+[Recovery] Collected 10 item(s) from its tombstone, 0 left
+[Build] the build order of "..." was handed to the companion that just came back
+[Build] Companion: back from the dead - resuming the build at piece 851
+[Build] Companion: placed (Direct) em (-156,6, 44,9, -421,6), verifying next frame
+```
+
+**Zero linhas `já está de pé` no run inteiro** (contra **271** no run de 22:33 e **120+** no anterior). A morte
+custou a peça 851 até ser recolocada, não as 850 que já estavam de pé.
+
+**O fechamento do run (a reconciliação da cena, passo 10 do ciclo):**
+
+| métrica | alvo | medido |
+|---|---|---|
+| peças na cena / plano | 985/985 | **985 / 985** |
+| reconciliação (yaw sem semente 344°, tol 0,45 m) | ≥ 983 casadas | **982 casadas**, resíduo máx. 349 mm |
+| peças fora do lugar | 0 | **1** — a `wood_beam_45` que a queda arrastou (plano y=45,0, cena y=38,8, mesmo x/z) |
+| `desistindo de` / `puladas` | 0 / 0 | **0 / 0** |
+| `no progress towards` | < 5 | **2** |
+| `no_support` | — | 3 (nenhum vira `pulada`) |
+| `UNSUPPORTED` | 0 | **0** |
+| resgates (teleporte) | ≤ 3 | **0** |
+| degraus temporários | ≤ 12 | **0** |
+| `order ended` | `hc_ai_blueprint_done` | **`hc_ai_blueprint_done`** |
+| quedas / mortes | 0 / 0 | **5 / 1** (item 11) |
+| linhas/peça | — | 3,03 (contra ~7,3 no run que o jogador reprovou) |
+
+O run **reprova no critério de quedas** — e a única peça fora do lugar é exatamente a que a queda arrastou. Os
+outros onze itens do aceite fecham. É a primeira vez que a reconciliação e o relatório concordam sobre o mesmo
+defeito: a queda não é só dano, é uma peça a menos no andar de cima.
+
+**Segundo defeito, no instrumento:** a primeira execução de `reconcile_scene.py` deu **exit 0** com essa peça
+faltando, porque (a) `explain_missing` comparava a coordenada **local** do plano com a **mundial** da cena — 449 a
+464 m de "distância" — e (b) gravava `best` em vez do `near` que acabara de calcular, então `is None` no `main()`
+nunca era verdade e **toda** faltante virava "explicada". Corrigido (comparação no espaço do mundo, usando o mesmo
+transform do casamento) e coberto por `tools/test_reconcile_scene.py` (5 casos, um deles a peça 6,2 m abaixo).
+**O exit 0 que ele deu às 00:12 não era evidência.**
+
 ### 12. ~~O run **grátis** da `CommHomeBasicBP`~~ — **medido 12/11/2026**
 O ciclo `fix/plano-remap` fechou os oito defeitos de código do `MHR_Build` (remapeamento do plano, "já está de pé"
 antes de pagar, abandono contado, watchdog × barreira, `LastY`/walk spot, escada sob o corpo, números do fim do grupo)

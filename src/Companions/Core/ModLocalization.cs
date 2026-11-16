@@ -618,6 +618,9 @@ public static class ModLocalization
 			{ "hc_ai_build_plan_done", "The {0} is up: {1} pieces." },
 			// E7: a blueprint from the player's library (a .blueprint file in the mod's folder)
 			{ "hc_ai_blueprint_done", "The {0} is up: {1} pieces, {2} skipped." },
+			// 15/11/2026 (the player's rule: a house is never "ready" with a piece missing): the order ended after every
+			// rung of the recovery ladder, and this is the line that says so instead of claiming the house is finished.
+			{ "hc_ai_blueprint_incomplete", "The {0} is not finished: {1} of {2} pieces would not go up ({3} still missing)." },
 			{ "hc_ai_blueprint_unknown", "I don't know a build called {0}. I have: {1}." },
 			{ "hc_ai_blueprint_none", "I don't have any build in my library yet. Put a .blueprint file in {0}." },
 			{ "hc_ai_blueprint_piece_missing", "That build uses a piece this world doesn't have: {0}." },

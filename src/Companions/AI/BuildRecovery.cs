@@ -69,6 +69,21 @@ internal static class BuildRecovery
 	}
 
 	/// <summary>
+	/// 15/11/2026 (the player's rule "ficar tentando até conseguir"): is this plan <b>out of second chances</b>? True when every
+	/// given-up piece already took all <see cref="MaxTries"/> rungs - only then may an order close with pieces missing, and even
+	/// then it says the number instead of claiming the house is finished.
+	///
+	/// <para>It is the counterweight of the ladder: without it, "never finish with a hole" would be an order that never ends.
+	/// With it, a piece the world genuinely cannot take (a ridge behind the skybox, a pose the game refuses) stops after the
+	/// third rung and the order closes - saying exactly which pieces and how many, never <c>done</c>.</para>
+	/// </summary>
+	internal static bool Exhausted(int givenUpAtMaxTier, int givenUpTotal)
+	{
+		// nothing given up = nothing to wait for: the order may close (it has no hole to declare)
+		return givenUpTotal <= 0 || givenUpAtMaxTier >= givenUpTotal;
+	}
+
+	/// <summary>
 	/// Which rung (if any) of the ladder is due <b>now</b>.
 	///
 	/// <para><paramref name="recovered"/> - how many rungs this piece already took (0 = it was never brought back;

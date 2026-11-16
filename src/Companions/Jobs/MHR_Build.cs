@@ -39,6 +39,31 @@ internal static class MHR_Build
 			return ModConfig.BuildPlaceReach != null ? ModConfig.BuildPlaceReach.Value : 5f;
 		}
 	}
+
+	/// <summary>
+	/// 15/11/2026 (the solo run of <c>CommHomeBasicBP</c>, measured: the body stood at <c>(-149,4, 39,9, -430,2)</c> and the
+	/// piece it was walking to at <c>(-159,1, 42,8, -434,9)</c> - <b>10,8 m</b> flat and 2,9 m up, against a
+	/// <see cref="MaxPlace"/> of 10): a <b>blueprint</b> run places at the game's own ceiling,
+	/// <c>Player.m_maxPlaceDistance</c> opened to its maximum (<see cref="BlueprintPlaceReach"/> = 20 m).
+	///
+	/// <para>Why the blueprint and not everything: a blueprint is a house built from a plan, and the plan's own structure
+	/// stands between the companion and the piece - the measured run could not walk to the piece at all (<c>route
+	/// partial</c> on 650 lines) because the walls and beams of the storey below block the NavMesh. Walking a plan is not
+	/// walking open ground; the reach of the game is the one honest way to keep building when the path is closed. A
+	/// template and a single piece keep the player's <c>[Building] PlaceReach</c> untouched.</para>
+	/// </summary>
+	internal const float BlueprintPlaceReach = 20f;
+
+	/// <summary>15/11/2026: the placement reach <b>for this order</b> - the blueprint's ceiling or the player's setting.
+	/// A null state (a single piece, a template) is never a blueprint.</summary>
+	private static float PlaceFor(State state)
+	{
+		if (state != null && state.Blueprint != null)
+		{
+			return Mathf.Max(MaxPlace, BlueprintPlaceReach);
+		}
+		return MaxPlace;
+	}
 	/// <summary>E7 (review, 03/11/2026): the walk still stops at <see cref="Reach"/>; the flat cap opens to
 	/// <c>MaxPlace - 0,5</c> only after 3 s without getting closer, and the eye distance is always <see cref="MaxPlace"/>
 	/// (vanilla 5 m, configurable up to 20 m).</summary>
@@ -70,10 +95,15 @@ internal static class MHR_Build
 	/// not a ladder: it is a ramp the mover walks up as plain geometry (no ladder logic and no landing to fall from - the
 	/// trap of 03/11/2026). Measured with build.snaps: +1 m, rising towards its own -Z.</summary>
 	private const string ScaffoldPrefab = "wood_stair";
-	/// <summary>How many temporary stairs one ORDER may place: a tool, not scaffolding for the whole house - with the budget 
-	/// per piece the test of 03/11/2026 ended with the site covered in stairs (985 pieces x 3). Each is +1 m and comes down as 
-	/// soon as the piece it was placed for goes up.</summary>
-	internal const int MaxScaffolds = 4;
+	/// <summary>How many temporary stairs one ORDER may place: a tool, not scaffolding for the whole house - with the budget
+	/// per piece the test of 03/11/2026 ended with the site covered in stairs (985 pieces x 3). Each is +1 m and comes down as
+	/// soon as the piece it was placed for goes up.
+	/// <para>15/11/2026 (the solo run, measured: <b>0</b> stairs in 985 pieces and a body caged one storey below everything
+	/// left): 4 was a budget for a tool that was never allowed to fire. The house's plan has the companion changing storey
+	/// several times and the stair is removed at the end of each one (<see cref="RemoveStoreyScaffolds"/>), so 12 is the
+	/// ceiling of a <b>working</b> stair, not of a forest - the measured "site covered in stairs" came from the per-piece
+	/// budget, which is what this constant still prevents.</para></summary>
+	internal const int MaxScaffolds = 12;
 	/// <summary>How many floor pieces one step may pull forward (a landing needs ONE tile; 2 is slack).</summary>
 	private const int MaxPulledFloors = 2;
 
@@ -442,6 +472,14 @@ internal static class MHR_Build
 		/// it is set, <see cref="MHR_Build.Advance"/> hands back the queued pieces <b>below</b> it 
 		/// (<see cref="MHR_Build.StoreyBarrier"/>) before taking anything of the storey above.</summary>
 		internal float BarrierNextY;
+		/// <summary>
+		/// 15/11/2026: the <c>Level</c> of that same piece - the <b>blueprint parser's</b> storey key (a local height), which
+		/// is the only scale the plan's storeys live in. <see cref="BarrierNextY"/> is its <b>world</b> height and is kept for
+		/// the messages and for the queue's own test (<see cref="MHR_Build.PendingBelowIndex"/>); every comparison against
+		/// another piece of the <b>plan</b> must use this one. Mixing the two made the barrier claim 984 pending pieces below
+		/// the second piece of a 985-piece house (measured 15/11/2026), which stalled the order on a rule that never cleared.
+		/// </summary>
+		internal float BarrierNextLevel;
 		/// <summary>The plan index that piece had (the walk resumes there after the barrier is served).</summary>
 		internal int BarrierNextIndex = -1;
 		/// <summary>When the barrier started - it is what bounds it (<see cref="BuildFailure.BodyRetryMaxWait"/>).</summary>
@@ -533,6 +571,29 @@ internal static class MHR_Build
 		/// the retry and the barrier all go through it). The site keeps its own sum (<c>MHR_BuildGroup.AddWalk</c>) and the 
 		/// summary line prints <c>caminhada: X m</c>.</summary>
 		internal float WalkMeters;
+
+		/// <summary>15/11/2026 (the caged companion): how many teleports this order already spent -
+		/// <see cref="BuildRescue.MaxPerOrder"/> is the cap and the number is the falsifier of the whole cycle (a run that
+		/// needs the last one says the temporary stair is not working).</summary>
+		internal int Rescues;
+
+		/// <summary>15/11/2026: since when the mover reports a <b>partial</b> route for the piece being walked to. Reset to
+		/// <c>Time.time</c> the moment the route is complete again (or a new piece is entered), so it measures one continuous
+		/// cage and never accumulates across the order.</summary>
+		internal float PartialSince;
+
+		/// <summary>15/11/2026: since when the body has not moved <see cref="BuildRescue.Moved"/> from
+		/// <see cref="StuckAt"/>. Kept apart from <see cref="BestDistance"/> on purpose: that one measures getting closer to
+		/// the <b>piece</b>, this one measures the body leaving the place, and a companion jumping at a ledge gets closer to
+		/// neither.</summary>
+		internal float StuckSince;
+
+		/// <summary>15/11/2026: where the body was when <see cref="StuckSince"/> started.</summary>
+		internal Vector3 StuckAt;
+
+		/// <summary>15/11/2026 (the rescue's second condition): was the temporary stair already asked for <b>this piece</b>
+		/// and refused? A stair is the honest way up and is always tried first - the teleport must never step over it.</summary>
+		internal bool ScaffoldTriedPiece;
 	}
 
 	/// <summary>E6: one piece of a plan, already resolved to a world pose.</summary>
@@ -622,6 +683,25 @@ internal static class MHR_Build
 		/// (the player's test of the 4x4 looped because it compared the BAG TOTAL with the SHORTFALL: the bag already had
 		/// the 2 it asked for and the door still needed 4).</summary>
 		internal List<PlannedStep> Plan;
+		/// <summary>
+		/// 15/11/2026 (the measured run of the <c>CommHomeBasicBP</c>, 985 pieces: at piece 854 the companion fell 6,9 m and
+		/// died, and the resumed order walked the house <b>from piece 1</b> - 100+ <c>já está de pé</c> lines re-visiting
+		/// pieces that were already standing, the exact re-walk the player had just rejected: <i>"ele deveria saber quais
+		/// estão colocadas corretamente depois que ele colocar a porra da peça"</i>).
+		///
+		/// <para><see cref="Plan"/> alone is not enough to resume: the walk's progress lives in the <b>sets</b> of plan indices
+		/// (<c>State.PlacedIndices</c>, <c>State.SkippedIndices</c>), and until this field existed they died with the state -
+		/// every death cost a full re-walk of everything the order had already built. The index alone cannot replace them
+		/// either: the storey barrier and the recovery ladder both place <b>out of order</b>, so the walk's position says
+		/// nothing about which pieces of the plan below it are up.</para>
+		///
+		/// <para>The same two sets travel on the gather handover (<see cref="HandOver"/>) - the materials gather takes the
+		/// order over for minutes and resumes it, and it had the same hole.</para>
+		/// </summary>
+		internal HashSet<int> Placed;
+		/// <summary>15/11/2026: the given-up indices of that same plan (see <see cref="Placed"/>) - a resumed order must not
+		/// re-attempt a piece whose ladder is already burnt, and `placed + skipped` keeps counting the same plan.</summary>
+		internal HashSet<int> Skipped;
 		/// <summary>E6b: when the watcher last recomputed the shortfall (once a second is enough).</summary>
 		internal float NextCheck;
 		/// <summary>E6b: when the count last went up. The gather timeout counts from HERE, not from the handover - a
@@ -1268,6 +1348,17 @@ internal static class MHR_Build
 				{
 					continue;
 				}
+				// 15/11/2026 (the measured regression of the run 21:58: 271 of 467 steps printed "a peça N/985 já está de pé",
+				// "outra tentativa a deixou lá"): the SOLO plan had no equivalent of the check above. The storey barrier serves
+				// a pending piece by ENTERING it out of order (ServeBarrier -> EnterStep), and it counts it as placed - so when
+				// the walk comes back to the index it was going to take, every piece the barrier placed in between is still
+				// ahead of it and gets walked to, one by one, only to be found standing. That is a full re-walk, not a check:
+				// 3 m to 17 m of walking per piece and a log line each. A piece already in `PlacedIndices` needs no walking,
+				// no material and no verification - it IS the answer this step would reach - so the walk steps over it.
+				if (state.Group == null && state.PlacedIndices.Contains(next))
+				{
+					continue;
+				}
 				// 11/11/2026 (Run 14, the spread of the crew): the plan's consecutive indices are NEIGHBOURS in space, so five
 				// companions reach for the same corner (88 "corpo na peça" and 32 step-aside asks in the measured log). With a
 				// shared site this worker takes the first piece of a small window of the SAME RUN that is FAR from what the
@@ -1315,8 +1406,21 @@ internal static class MHR_Build
 		}
 		if (state.Blueprint != null)
 		{
-			// P1 (review A1): the group's retry queue is worked before the order ends - it is the last chance of the
-			// pieces that did not stand yet
+			// 15/11/2026 (the player's rule, twice: "peças faltando na construção não será tolerado" and "ficar tentando até
+			// conseguir"): THE ORDER DOES NOT END WITH A PIECE STILL MISSING. The old tail called Finish(hc_ai_blueprint_done)
+			// as soon as the forward scan reached the plan's end, whatever SkippedIndices held - the run of 15/11/2026 would
+			// have said "ready" with 135 pieces given up, and the run of 13/11 said it with 10. RecoverDue (called at the top
+			// of Advance) already knows how to put a given-up step back into the plan on the BuildRecovery ladder; what was
+			// missing was refusing to finish while its ladder still has rungs left.
+			if (state.SkippedIndices.Count > 0 && !RecoveryExhausted(state))
+			{
+				// a piece can still come back: wait for its rung instead of declaring the house finished with a hole in it
+				state.Phase = Phase.WaitRetry;
+				state.Start = Time.time;
+				return true;
+			}
+			// P1 (review A1): the group's retry queue is worked before the order ends - it is the last chance of
+			// the pieces that did not stand yet
 			if (state.Group != null && state.Plan != null)
 			{
 				bool spread;
@@ -1400,6 +1504,15 @@ internal static class MHR_Build
 	private static void EnterStep(CompanionAI ai, State state, int index)
 	{
 		PlannedStep next = state.Plan[index];
+		// 15/11/2026: the storey the walk is LEAVING, read before `state.Index` is overwritten below - it is what makes the
+		// temporary stairs come down at the end of a storey instead of piling up through the whole order. It is the PLAN's
+		// `Level` (the blueprint parser's key, a LOCAL height), never `state.Pos.y` (world): the two are different spaces and
+		// comparing them made every piece look like a new storey.
+		float leaveLevel = float.NaN;
+		if (state.Blueprint != null && state.Index >= 0 && state.Index < state.Plan.Count && state.Plan[state.Index] != null)
+		{
+			leaveLevel = state.Plan[state.Index].Level;
+		}
 		if (ai != null && next != null)
 		{
 			float walk = CharacterDistance(ai, next.Pos);
@@ -1441,6 +1554,22 @@ internal static class MHR_Build
 		// piece skip it. 0 = no reference yet: the first frame of the new piece only records where the body is.
 		state.LastY = 0f;
 		state.Phase = Phase.Goto;
+		// 15/11/2026 (the caged companion): the two clocks of the rescue are per PIECE - a new piece is a new question about
+		// whether the body can get to it, and a piece the walk gives up on must not carry its seconds into the next one.
+		state.PartialSince = 0f;
+		state.StuckSince = 0f;
+		state.StuckAt = Vector3.zero;
+		state.ScaffoldTriedPiece = false;   // the stair gets its chance for every piece (the rescue's 2nd condition)
+		// 15/11/2026 (the temporary stair as a tool that never grew into a forest): the stairs are taken down when the walk
+		// CHANGES STOREY, not only when the order ends. The measured defect of 03/11/2026 ("the site filled with little
+		// stairs") was a budget PER PIECE; with the stair now allowed to fire (max 12) a whole order without this would be
+		// twelve ramps standing in the house. ClearScaffolds already keeps a stair the companion stands on and one that is
+		// holding a placed piece up, so taking them down here is safe even mid-climb.
+		if (state.Blueprint != null && next != null && !float.IsNaN(leaveLevel)
+			&& Mathf.Abs(next.Level - leaveLevel) > BuildStoreyGate.SameStorey)
+		{
+			ClearScaffolds(ai, state);
+		}
 	}
 
 	/// <summary>
@@ -1468,23 +1597,38 @@ internal static class MHR_Build
 			return false;
 		}
 		float nextY = next.Pos.y;
-		if (state.BarrierNextY > 0f && Mathf.Abs(state.BarrierNextY - nextY) > 0.01f)
+		float nextLevel = next.Level;
+		if (state.BarrierNextIndex >= 0 && Mathf.Abs(state.BarrierNextY - nextY) > 0.01f)
 		{
 			ResetBarrier(state);   // the walk's target changed (a piece done/claimed): the barrier is drawn for this one
 		}
-		if (state.BarrierNextY <= 0f)
+		if (state.BarrierNextIndex < 0)
 		{
+			// 15/11/2026 (the storey gate made real): the barrier is drawn by "something of the plan is still unresolved
+			// BELOW this storey", not only by "something is waiting in the retry queue". The queue-only test is what let the
+			// house climb over a ground floor with holes in it: those pieces were never tried, so they were never queued.
+			// The plan-wide count is asked in the PARSER's space (`Level`), the queue in the world's (`Pos.y`).
 			int waiting = PendingBelowIndex(ai, state, nextIndex, nextY);
-			if (waiting < 0)
+			int pendingBelow = PendingBelowPlan(state, nextLevel);
+			if (waiting < 0 && pendingBelow <= 0)
 			{
-				return false;   // nothing of the storey below is waiting: just climb
+				return false;   // nothing of the storey below is unresolved: just climb
 			}
 			state.BarrierNextY = nextY;
+			state.BarrierNextLevel = nextLevel;
 			state.BarrierNextIndex = nextIndex;
 			state.BarrierStart = Time.time;
 			state.BarrierServed.Clear();
-			LogDebug(ai, "barreira de andar: " + state.Plan[waiting].Prefab + " (" + (waiting + 1) + "/"
-				+ state.Plan.Count + ") espera embaixo - nada acima de " + F(nextY) + " m sobe antes dela");
+			if (waiting >= 0)
+			{
+				LogDebug(ai, "barreira de andar: " + state.Plan[waiting].Prefab + " (" + (waiting + 1) + "/"
+					+ state.Plan.Count + ") espera embaixo - nada acima de " + F(nextY) + " m sobe antes dela");
+			}
+			else
+			{
+				LogDebug(ai, "barreira de andar: " + pendingBelow + " peça(s) do plano pendente(s) abaixo de " + F(nextY)
+					+ " m - nada acima sobe antes delas");
+			}
 		}
 		// 11/11/2026 (Run 17): the frame this barrier is DRAWN already returns to the wait, and the seconds are the
 		// caller's dt (Run 18: it used to be 0f, so the drawing frame counted nothing).
@@ -1499,7 +1643,7 @@ internal static class MHR_Build
 	/// </summary>
 	private static bool ServeBarrier(CompanionAI ai, State state, float dt)
 	{
-		if (state == null || state.Plan == null || state.BarrierNextY <= 0f || state.BarrierNextIndex < 0
+		if (state == null || state.Plan == null || state.BarrierNextIndex < 0
 			|| state.BarrierNextIndex >= state.Plan.Count)
 		{
 			return false;
@@ -1509,34 +1653,58 @@ internal static class MHR_Build
 			ResetBarrier(state);   // the player turned it off in the F8 panel while the order was running
 			return false;
 		}
-		// 11/11/2026 (Run 17, ONE CLOCK): the patience runs from the drawing of the barrier and is never pushed forward.
-		// INVARIANT: ServeBarrier never outlives the site's gate (MHR_BuildGroup.MayTake) - BodyRetryMaxWait IS
-		// BodyBarrierSeconds (10 s). Pushing it made the patience indefinite and the longer clock always won (Run 16: 31
-		// "nothing above ... is taken" lines with workers standing still).
+		// 15/11/2026 (the solo run of CommHomeBasicBP, measured: 653/985, 135 given up, the body frozen one storey below every
+		// remaining target): THE PATIENCE NO LONGER CLIMBS OVER THE HOLE. The old branch below let the plan climb after
+		// BodyRetryMaxWait, and it only ever asked PendingBelowIndex - which reads the retry QUEUE. A piece of the ground floor
+		// the walk had never tried was invisible, so the house went up standing on a floor with holes in it, the player saw it
+		// from the screenshot ("esses pisos aqui ele tinha que tentar colocar denovo antes de continuar subindo") and the plan
+		// climbed anyway. The rule the player stated twice is now the one that decides: with any piece of the plan unresolved
+		// BELOW the next storey, the piece above is not taken - the walk goes back down and serves the lowest one.
+		//
+		// The patience still bounds the WAITING, never the ORDER of the storeys: past BodyRetryMaxWait the barrier stops being
+		// polite and takes the pending piece directly from the plan (BuildRecovery's own clock keeps a piece from looping).
+		// Only a plan whose pending pieces are ALL in the queue - where the barrier has nothing new to serve - falls through to
+		// the climb, and that case is the site's, not this one.
+		// 15/11/2026: the gate is asked in the PARSER's space (`Level`, a local height) - `BarrierNextY` is the world height
+		// of the same piece and is only for the messages and for the queue's own test, which reads `Pos.y` too.
+		int pendingBelow = PendingBelowPlan(state, state.BarrierNextLevel);
+		bool scaffolding = state.ScaffoldTries < MaxScaffolds;
+		if (!BuildStoreyGate.MayTake(state.BarrierNextLevel, pendingBelow, scaffolding))
+		{
+			int lowest = LowestPendingBelow(state, state.BarrierNextLevel);
+			if (lowest >= 0)
+			{
+				state.BarrierServed.Add(lowest);
+				state.ResumeIndex = state.BarrierNextIndex;
+				EnterStep(ai, state, lowest);
+				Log(ai, "nada acima de " + F(state.BarrierNextY) + " m antes do andar de baixo: voltando para "
+					+ state.Prefab + " (" + (lowest + 1) + "/" + state.Plan.Count + ") em " + Pose(state.Pos)
+					+ " - " + pendingBelow + " peça(s) pendente(s) abaixo");
+				return true;
+			}
+		}
+		// 15/11/2026 (the measured run 21:58: the seven gates went up at 979-985/985 with "46 peça(s) pendente(s) abaixo",
+		// i.e. the LAST pieces of the plan were taken while the ground floor still had holes): THE PATIENCE NO LONGER CLIMBS.
+		// The branch below used to drop the barrier after BodyRetryMaxWait and let the plan climb, and the player's rule is
+		// the opposite one, stated twice - the houses go up BOTTOM-UP and no piece is left behind. What the clock still bounds
+		// is the WAITING: past it the barrier stops being polite and takes the pending piece itself (it already did above,
+		// through LowestPendingBelow), and if that piece cannot be served the walk keeps holding instead of climbing over it.
+		// Climbing is the one thing the clock may never buy: the price is a hole in the floor with the roof on top of it.
 		if (Time.time - state.BarrierStart > BuildFailure.BodyRetryMaxWait)
 		{
-			int stuck = PendingBelowIndex(ai, state, state.BarrierNextIndex, state.BarrierNextY);
-			// 12/11/2026 (the free run, measured): the piece the barrier waited for is NOT given up here. It is still in the
-			// site's queue (that is what PendingBelowIndex just read), so the queue still owns it - the rule AbandonPiece
-			// already states: a piece that was never tried and comes back through the queue is DEFERRED, never counted.
-			// Counting it here made the number lie twice over: 7 `desistindo de` in the first 300 pieces of the free run
-			// while every one of those pieces ended up standing (placed by the other worker, or served later by the queue),
-			// and the counter printed in the line went backwards (4 pulada(s) -> 3) when MarkDone took one back out.
-			// The piece is abandoned - and counted - by the path that really drops it: the stall watchdog's AbandonRetry.
-			if (stuck >= 0 && stuck < state.Plan.Count)
+			// nothing of the plan is left below the barrier: this is the only way out, and it is the gate's own answer
+			if (PendingBelowPlan(state, state.BarrierNextLevel) <= 0)
 			{
-				LogDebug(ai, "barreira de andar: a peça " + (stuck + 1) + "/" + state.Plan.Count
-					+ " não voltou em " + BuildFailure.BodyBarrierSeconds.ToString("F0")
-					+ " s - fica na fila do canteiro e o plano sobe");
+				ResetBarrier(state);
+				return false;   // the normal gate: the plan climbs (nothing of the plan is left below)
 			}
-			else
-			{
-				// nothing below is waiting anymore (served, or up by another worker): there is no piece to give up, and the
-				// NEXT piece is not the one that failed - it is only where the walk was going. It is never counted here.
-				LogDebug(ai, "barreira de andar: nada abaixo espera mais - o plano sobe");
-			}
-			ResetBarrier(state);
-			return false;   // the normal gate: the plan climbs
+			// still something below and nothing servable: the barrier holds. It is not a stall - Goto keeps the body moving,
+			// the temporary stair and the rescue below are the way out, and the stall watchdog still ends a run that stops
+			// making progress at all.
+			LogDebug(ai, "barreira de andar: " + PendingBelowPlan(state, state.BarrierNextLevel)
+				+ " peça(s) do plano pendente(s) abaixo de " + F(state.BarrierNextY)
+				+ " m e nada servível agora - o plano NÃO sobe");
+			return true;
 		}
 		int serve = NextRetryBelow(ai, state, state.BarrierNextIndex, state.BarrierNextY);
 		if (serve >= 0)
@@ -1651,16 +1819,93 @@ internal static class MHR_Build
 			return;
 		}
 		state.BarrierNextY = 0f;
+		state.BarrierNextLevel = 0f;
 		state.BarrierNextIndex = -1;
 		state.BarrierStart = 0f;
 		state.BarrierServed.Clear();
 	}
 
 	/// <summary>
-	/// 11/11/2026 (the storey barrier): the plan index of a piece of the queue that is still <b>below</b> the next piece, or -1
-	/// (the site's queue in a group, this worker's list otherwise). It is the "is something waiting below?" question of
-	/// <see cref="StoreyBarrier"/> - and the index is what lets the log name the piece that did not come back.
+	/// 15/11/2026 (the solo run of <c>CommHomeBasicBP</c>, measured: <b>653/985</b> with <b>135</b> given up and the body frozen
+	/// one storey below every remaining target): how many pieces of the <b>whole plan</b> are below
+	/// <paramref name="nextLevel"/> and still unresolved. This is the number <see cref="BuildStoreyGate.MayTake"/> decides
+	/// with, and it is deliberately <b>not</b> <see cref="PendingBelowIndex"/>: that one reads the retry <b>queue</b>, so a
+	/// piece of the ground floor the walk never even tried was invisible to it and the plan climbed over the hole.
+	///
+	/// <para>It reads the plan itself (placed/given-up as the caller sees them), so it answers the same for a solo order and
+	/// for a crew, and it never counts a piece of the <b>same</b> storey (<see cref="BuildStoreyGate.Below"/>).</para>
+	///
+	/// <para><paramref name="nextLevel"/> is the next piece's <c>Level</c> (the blueprint parser's key, a <b>local</b>
+	/// height), never its <c>Pos.y</c> (world): mixing the two spaces made every piece look like it sat above the whole plan
+	/// (measured 15/11/2026: "984 peça(s) pendente(s) abaixo" printed on the second piece of a 985-piece house).</para>
 	/// </summary>
+	private static int PendingBelowPlan(State state, float nextLevel)
+	{
+		if (state == null || state.Plan == null)
+		{
+			return 0;
+		}
+		int pending = 0;
+		ISet<int> placed = PlacedSet(state);
+		ISet<int> givenUp = SkippedSet(state);
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || !BuildStoreyGate.Below(step.Level, nextLevel))
+			{
+				continue;
+			}
+			if (SettledPieces.Out(PieceIdentity(state, i), placed, givenUp))
+			{
+				continue;
+			}
+			pending++;
+		}
+		return pending;
+	}
+
+	/// <summary>
+	/// 15/11/2026 (the storey gate made real): the <b>lowest</b> unresolved piece of the plan below
+	/// <paramref name="nextLevel"/>, or -1. It is what <see cref="ServeBarrier"/> walks back down to once
+	/// <see cref="PendingBelowPlan"/> says the storey under the next piece is not finished - the pending piece with the
+	/// smallest <c>Level</c> is the one the rest of the house stands on, so it is the one that gets the turn.
+	///
+	/// <para>Ties are broken by plan order (the first one in the blueprint wins), which keeps the walk deterministic
+	/// between runs - the same piece on the same house.</para>
+	/// </summary>
+	private static int LowestPendingBelow(State state, float nextLevel)
+	{
+		if (state == null || state.Plan == null)
+		{
+			return -1;
+		}
+		int best = -1;
+		float bestLevel = float.MaxValue;
+		ISet<int> placed = PlacedSet(state);
+		ISet<int> givenUp = SkippedSet(state);
+		for (int i = 0; i < state.Plan.Count; i++)
+		{
+			PlannedStep step = state.Plan[i];
+			if (step == null || !BuildStoreyGate.Below(step.Level, nextLevel))
+			{
+				continue;
+			}
+			if (SettledPieces.Out(PieceIdentity(state, i), placed, givenUp))
+			{
+				continue;
+			}
+			if (step.Level < bestLevel)
+			{
+				best = i;
+				bestLevel = step.Level;
+			}
+		}
+		return best;
+	}
+
+	/// <summary>11/11/2026 (the storey barrier): the plan index of a piece of the queue that is still <b>below</b> the next piece, or -1
+	/// (the site's queue in a group, this worker's list otherwise). It is the "is something waiting below?" question of
+	/// <see cref="StoreyBarrier"/> - and the index is what lets the log name the piece that did not come back.</summary>
 	private static int PendingBelowIndex(CompanionAI ai, State state, int nextIndex, float nextY)
 	{
 		if (state == null || state.Plan == null)
@@ -2916,6 +3161,9 @@ internal static class MHR_Build
 			Plan = state.Plan,
 			Retry = state.Retry,
 			Passes = state.Passes,
+			// 15/11/2026: the progress of the walk travels with the plan, or the respawn re-walks the whole house
+			Placed = new HashSet<int>(state.PlacedIndices),
+			Skipped = new HashSet<int>(state.SkippedIndices),
 			AfterDeath = true,
 			CompanionId = cs != null ? cs.MHR_ResolveCompanionId() : null,
 			Start = Time.time,
@@ -3930,6 +4178,39 @@ internal static class MHR_Build
 	}
 
 	/// <summary>
+	/// 15/11/2026 (the player's rule "ficar tentando até conseguir"): every given-up piece of this plan already took all the
+	/// rungs of <see cref="BuildRecovery"/>'s ladder. Only then may the order close with pieces missing - otherwise the walk
+	/// waits for the next rung (<see cref="RecoverDue"/>) instead of declaring the house finished over a hole.
+	/// </summary>
+	private static bool RecoveryExhausted(State state)
+	{
+		if (state == null || state.Plan == null || state.SkippedIndices.Count == 0)
+		{
+			return true;   // nothing given up: nothing to wait for
+		}
+		int total = 0;
+		int done = 0;
+		foreach (int index in state.SkippedIndices)
+		{
+			if (index < 0 || index >= state.Plan.Count)
+			{
+				continue;
+			}
+			PlannedStep step = state.Plan[index];
+			if (step == null)
+			{
+				continue;
+			}
+			total++;
+			if (step.Recovered >= BuildRecovery.MaxTries)
+			{
+				done++;
+			}
+		}
+		return BuildRecovery.Exhausted(done, total);
+	}
+
+	/// <summary>
 	/// Puts one given-up piece <b>back in the walk</b> on <paramref name="tier"/> (see <see cref="RecoverDue"/>): the counters
 	/// whole, the self-healing budget fresh, and the step moved to the place the rung names
 	/// (<see cref="BuildRecovery.InsertAt"/>). <paramref name="placedNow"/> is the order's placement count at this attempt - it
@@ -4816,7 +5097,15 @@ internal static class MHR_Build
 					continue;
 				}
 				candidate.y = hit.point.y + 0.02f;
-				if (Mathf.Abs(candidate.y - me.y) > 1.2f)
+				// 15/11/2026 (the solo run, measured): the probe only looked 1 m ABOVE the body's feet and rejected anything
+				// further than 1,2 m, so the one place the stair is actually needed - the floor of the storey the piece is on,
+				// 2-3 m above a caged body - was never a candidate. The stair only has to START somewhere the companion can
+				// walk onto; a surface at the piece's own storey qualifies when the floor under the body does not.
+				float dropToMe = Mathf.Abs(candidate.y - me.y);
+				float dropToPiece = Mathf.Abs(candidate.y - state.Pos.y);
+				bool atFeet = dropToMe <= 1.2f;
+				bool atStorey = state.Blueprint != null && dropToPiece <= 0.6f && candidate.y > me.y;
+				if (!atFeet && !atStorey)
 				{
 					continue;   // a floor too far above/below: he could not walk onto it
 				}
@@ -4862,6 +5151,74 @@ internal static class MHR_Build
 		// by MaxScaffolds for the whole order
 		Log(ai, "no room for a temporary stair near the " + state.Prefab + " (" + (last ?? "no ground") + ")");
 		return false;
+	}
+
+	/// <summary>
+	/// 15/11/2026 (the player's report over the screenshot: <i>"esta preso ele, isso não pode ser tolerado, afinal é uma
+	/// função de companions que constroem blueprints, não de companions enjaulados"</i>): the last resort of a caged walk -
+	/// put the companion on the surface it needed to reach, and <b>say so</b>.
+	///
+	/// <para>The three conditions and the cap live in <see cref="BuildRescue.Should"/> (pure, pinned by the harness in
+	/// section (ar)); this method only adds the world. It is called from <see cref="Goto"/> after the 12 s <c>no progress</c>
+	/// clock has already tried the temporary stair, which is what <c>scaffoldTried</c> answers - a stair that was never
+	/// asked for must not be stepped over.</para>
+	///
+	/// <para>The spot is the one the walk already computed (<c>state.WalkTo</c> / <c>WalkSpot</c>): a <b>structural</b>
+	/// surface of the plan, never the player, never geometry, never a random point. Without one there is nowhere honest to
+	/// go and the piece goes back to the queue instead.</para>
+	/// </summary>
+	private static bool TryRescue(CompanionAI ai, State state, Vector3 me)
+	{
+		if (ai == null || state == null || state.Blueprint == null)
+		{
+			return false;
+		}
+		bool partial = MHR_Mover.RoutePartial(ai);
+		if (!partial)
+		{
+			// the route is complete again: this is a companion walking, not a caged one - the clock starts over
+			state.PartialSince = 0f;
+			return false;
+		}
+		if (state.PartialSince <= 0f)
+		{
+			state.PartialSince = Time.time;
+		}
+		// the body's own clock: it has not left this spot for StuckFor seconds (3D, so a climb counts as moving)
+		if (state.StuckSince <= 0f || Vector3.Distance(me, state.StuckAt) > BuildRescue.Moved)
+		{
+			state.StuckSince = Time.time;
+			state.StuckAt = me;
+		}
+		bool spotOk = state.HasWalkTo || WalkSpot(ai, state, out state.WalkTo);
+		Vector3 spot = state.WalkTo;
+		if (spotOk && !BuildRescue.InBounds(FlatFromAnchor(state, spot)))
+		{
+			spotOk = false;   // a spot the plan holds across the valley is not this order's
+		}
+		if (!BuildRescue.Should(partial, Time.time - state.PartialSince, state.ScaffoldTriedPiece,
+			Time.time - state.StuckSince, spotOk, state.Rescues))
+		{
+			return false;
+		}
+		state.Rescues++;
+		ai.MHR_PlaceAt(spot);
+		state.BestDistance = 0f;
+		state.BestAt = Time.time;   // the 12 s clock starts over from the new place
+		state.PartialSince = 0f;
+		state.StuckSince = 0f;
+		Log(ai, "pulando o caminho: preso ha " + BuildRescue.RoutePartialAfter.ToString("F0")
+			+ " s sem rota e sem degrau que resolvesse - vou direto para a superficie " + Pose(spot)
+			+ " e coloco o " + state.Prefab + " de la (resgate " + state.Rescues + "/" + BuildRescue.MaxPerOrder + ")");
+		return true;
+	}
+
+	/// <summary>15/11/2026: how far (metres, flat) a point is from the order's anchor. A plan without a known anchor is
+	/// measured from the piece being built, which is always inside the site.</summary>
+	private static float FlatFromAnchor(State state, Vector3 point)
+	{
+		Vector3 anchor = state != null && state.AnchorKnown ? state.Anchor : state != null ? state.Pos : point;
+		return new Vector2(point.x - anchor.x, point.z - anchor.z).magnitude;
 	}
 
 	/// <summary>Layer mask of the scaffold's ground probe (cached: <c>LayerMask.GetMask</c> allocates an array per 
@@ -6607,6 +6964,10 @@ internal static class MHR_Build
 			}
 		}
 		state.LastY = me.y;
+		// 15/11/2026: the placement reach of THIS order, read once per frame - the blueprint uses the game's ceiling (20 m)
+		// and a template/single piece keeps the player's [Building] PlaceReach (10 m by default). It is used by the stair's
+		// trigger, the rescue and the reach test below; one read, so the three can never disagree on the same frame.
+		float placeHere = PlaceFor(state);
 		// 11/11/2026 (Run 13, the ridge of the CommHomeBasicBP): the walk used to be sent at the piece's own pose - a roof row
 		// 10 m above the feet - and Pathfinding.GetPath snaps the "from" point to the navmesh up to 12 m, so the route started
 		// far from the feet and walked the WRONG way (no progress after 12 s at 22,8 m, then 23,5 m). The walk goes to a
@@ -6659,10 +7020,25 @@ internal static class MHR_Build
 			// only helps when the piece is ABOVE the eye rule (<see cref="MaxPlace"/> - vanilla 5 m, [Building] PlaceReach) -
 			// if he is stuck for any other reason (a wall, a hole) it would be junk. And it is placed only here, after 12 s
 			// of real struggle, never just because he walked past.
+			//
+			// 15/11/2026 (the solo run, measured: 0 temporary stairs in 985 pieces): the old first test was
+			// `flat <= MaxPlace`, so a piece 10,8 m away against a reach of 10 m - the measured caged case, the body one
+			// storey below everything left in the plan - returned here BEFORE TryScaffold was ever called, and the stair the
+			// feature exists for never happened. The test now asks what the stair is for: can this piece be reached from
+			// where the body stands? If not, a stair is the way up, whatever the flat gap says.
+			float placeHereInner = PlaceFor(state);
 			Vector3 eyeNow = new Vector3(me.x, me.y + EyeHeight, me.z);
-			if (new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude <= MaxPlace
-				&& Vector3.Distance(eyeNow, state.Pos) > MaxPlace
-				&& TryScaffold(ai, state, cs))
+			if (Vector3.Distance(eyeNow, state.Pos) > placeHereInner)
+			{
+				state.ScaffoldTriedPiece = true;   // a stair was the first answer; the rescue may only step over a tried one
+				if (TryScaffold(ai, state, cs))
+				{
+					return true;
+				}
+			}
+			// 15/11/2026 (the caged companion, the player's "não de companions enjaulados"): after the stair there is one
+			// thing left before the piece goes back to the queue - the walk itself, put on the surface it needed.
+			if (TryRescue(ai, state, me))
 			{
 				return true;
 			}
@@ -6689,20 +7065,21 @@ internal static class MHR_Build
 			}
 		}
 		float flat = new Vector2(me.x - state.Pos.x, me.z - state.Pos.z).magnitude;
-		// a piece may be placed up to <see cref="MaxPlace"/> from the EYE (vanilla Player.m_maxPlaceDistance = 5 m, and
-		// [Building] PlaceReach raises it); the companion's eye is ~1,5 m above its feet, so a roof 4,9 m up is within
-		// reach even though the feet are 4,9 m below it
+		// a piece may be placed up to <see cref="PlaceFor"/> from the EYE (vanilla Player.m_maxPlaceDistance = 5 m, and
+		// [Building] PlaceReach raises it; a blueprint run uses the game's ceiling - 20 m); the companion's eye is ~1,5 m
+		// above its feet, so a roof 4,9 m up is within reach even though the feet are 4,9 m below it
 		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
 		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap was
 		// Reach + 0,5 = 3,0 m while the game allows 5 m from the EYE - the gable top at 42,8 with the companion standing
 		// 3,15 m away flat (3,3 m in 3D) was refused by 15 cm and he walked in circles for 12 s. The eye rule is the
 		// game's own (now configurable); the flat cap only has to keep him from placing through the far side of the house.
-		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace;
+		bool inReach = flat <= Reach + 0.5f && Vector3.Distance(eye, state.Pos) <= placeHere;
 		// E7 (player's report, 03/11/2026: "he is still struggling to place a piece on the high roof"): the flat cap of 3,0 m
-		// was stricter than the eye rule and refused a gable top 3,15 m away by 15 cm. The relaxed cap (<c>MaxPlace - 0,5</c>,
-		// which is 4,5 m at the vanilla 5 and 9,5 m at the default 10) is used ONLY when he stopped getting closer for 3 s:
-		// the normal walk still ends at Reach, so a piece is not placed from far away just because he walked past the radius.
-		if (!inReach && flat <= MaxPlace - 0.5f && Vector3.Distance(eye, state.Pos) <= MaxPlace
+		// was stricter than the eye rule and refused a gable top 3,15 m away by 15 cm. The relaxed cap (<c>PlaceFor - 0,5</c>,
+		// which is 4,5 m at the vanilla 5, 9,5 m at the default 10 and the game's ceiling for a blueprint) is used ONLY when
+		// he stopped getting closer for 3 s: the normal walk still ends at Reach, so a piece is not placed from far away just
+		// because he walked past the radius.
+		if (!inReach && flat <= placeHere - 0.5f && Vector3.Distance(eye, state.Pos) <= placeHere
 			&& Time.time - state.BestAt > 3f)
 		{
 			inReach = true;
@@ -8096,6 +8473,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			Plan = state.Plan,
 			Retry = state.Retry,
 			Passes = state.Passes,
+			// 15/11/2026: the gather takes the order over for minutes and resumes it - the walk's progress travels with the
+			// plan here too (without it the resumed order re-walked every piece already standing)
+			Placed = new HashSet<int>(state.PlacedIndices),
+			Skipped = new HashSet<int>(state.SkippedIndices),
 			Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
 			AnchorRot = state.AnchorRot,
 			FollowWas = follow,
@@ -8103,6 +8484,44 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			LastProgressAt = Time.time
 		};
 		Log(ai, "gathering " + state.GatherAmount + "x " + state.GatherItem + " (mode " + state.GatherMode + ") - the build resumes after it");
+	}
+
+	/// <summary>
+	/// 15/11/2026 (the <c>CommHomeBasicBP</c> run of the same day: at piece 854 the companion fell 6,9 m and died, and the
+	/// resumed order walked the house from <b>piece 1</b> - 120+ <c>já está de pé</c> lines, one per piece it had already
+	/// built, the very regression the player had just called out): <b>the progress of the walk survives the interruption</b>.
+	///
+	/// <para>A resume (<see cref="ResumeBlueprint"/> after a death or a gather) rebuilds a <b>fresh</b> <see cref="State"/>
+	/// from the plan, and a fresh state has empty <c>PlacedIndices</c>/<c>SkippedIndices</c> - the walk then starts at the
+	/// resumed index but every piece the plan holds before it (and every piece the storey barrier placed <b>out of order</b>
+	/// after it) gets walked to and asked for a ghost check that can only answer "it is already there". The sets travel in
+	/// <see cref="Pending.Placed"/> / <see cref="Pending.Skipped"/> and land here.</para>
+	///
+	/// <para>The two indices that decide the walk are set too: <see cref="State.PlacedTotal"/> is the ladder's clock
+	/// (<see cref="BuildRecovery.QueueGap"/>) and restarting it at 0 would make every given-up piece due at once, and
+	/// <see cref="State.Index"/> is the walk's own position. Both are only touched when there is something to restore - a
+	/// pending with no sets (a single piece, a template) keeps the resume behaviour of before, byte for byte.</para>
+	/// </summary>
+	private static void RestoreProgress(State fresh, Pending pending)
+	{
+		// BLUEPRINT ONLY: a resumed blueprint reuses the pending's EXACT plan (StartBlueprint's `storedPlan`), so a saved index
+		// names the same piece it named before the interruption. A template rebuilds its plan on every resume (StartPlan ->
+		// BuildTemplatePlan, whose pose checks can drop steps and shift every index after them) - carrying indices across
+		// that would mark a DIFFERENT piece as done, which is a hole the counters would never show. A template is a handful
+		// of pieces: it re-walks cheaply and stays exactly as it was.
+		if (fresh == null || pending == null || pending.Placed == null || fresh.Blueprint == null)
+		{
+			return;
+		}
+		// and SOLO only: a crew's progress lives in the site (MHR_BuildGroup.DoneSet, which is what PlacedSet answers while
+		// the worker belongs to one) - carrying the worker's own sets into a site would be a second, disagreeing truth
+		if (pending.Group != null)
+		{
+			return;
+		}
+		int planCount = fresh.Plan != null ? fresh.Plan.Count : 0;
+		fresh.PlacedTotal = BuildProgress.Restore(fresh.PlacedIndices, fresh.SkippedIndices, pending.Placed, pending.Skipped,
+			planCount);
 	}
 
 	/// <summary>E6b: undoes the Follow that <see cref="HandOver"/> turned off. Only when it is still off (you may have
@@ -8466,6 +8885,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				{
 					fresh.Retry = pending.Retry;
 					fresh.Passes = pending.Passes;
+					// 15/11/2026: what the walk had already settled travels back with the plan (a resumed order that starts
+					// with empty sets re-walks every piece of the house it already built)
+					RestoreProgress(fresh, pending);
 					// P1 (multi-build): the body that came back goes to its site again (its piece may be another's now -
 					// RejoinGroup claims again and moves on when it is taken or already built)
 					RejoinGroup(ai, fresh, pending.Group);
@@ -8627,6 +9049,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			// P1 (multi-build): the gather is over - the companion goes back to its site (if the site is still alive)
 			if (s_state.TryGetValue(ai.GetInstanceID(), out fresh) && fresh != null)
 			{
+				// 15/11/2026: the gather owned the body for minutes and the order resumes - the pieces that went up before it
+				// must not be walked to again
+				RestoreProgress(fresh, pending);
 				RejoinGroup(ai, fresh, pending.Group);
 			}
 			Log(ai, "materials ready - resuming the build");
@@ -8715,6 +9140,15 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 				+ skippedCount + " pulada(s) · caminhada: " + F(siteWalked) + " m (este: " + F(state.WalkMeters) + " m)");
 		}
 		// one line per order end, with the key that was spoken: it is how a test proves which refusal came out
+		// 15/11/2026 (the player's rule "peças faltando na construção não será tolerado"): a blueprint that still has a piece
+		// out NEVER closes as `done`. The order ends (every rung of the recovery ladder is spent), and it says `incomplete`
+		// with the number - what the player forbade is the mod claiming a house is finished when it is not.
+		if (state.Blueprint != null && placed < planned && "hc_ai_blueprint_done".Equals(key))
+		{
+			key = "hc_ai_blueprint_incomplete";
+			args = new object[] { state.Blueprint, placed, planned, planned - placed };
+			why = planned - placed + " peça(s) não subiram";
+		}
 		Log(ai, "order ended: " + (key ?? "(silent)") + (string.IsNullOrEmpty(why) ? string.Empty : " (" + why + ")"));
 		if (key != null)
 		{

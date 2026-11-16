@@ -49,6 +49,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-check.ps1 -Ver
 python tools/build_run_report.py [log] [--last|--all] [--json]
 python tools/test_build_run_report.py                    # 4 synthetic-log cases (the report is the instrument for every run)
 
+# the proof of "no piece missing": the SCENE against the blueprint (seed-free fit; exit 0 = nothing missing)
+python tools/reconcile_scene.py --blueprint <file.blueprint> --scene <build.pieces payload.json>
+python tools/test_reconcile_scene.py      # 5 cases; run it whenever the reconciliation passes or fails a run
+#   recipe and why a centroid fit is not enough: docs/re/ciclo-de-run-devbridge.md step 10
+
 # GitHub Wiki source (docs/wiki/) -> separate .wiki repo
 python tools/publish_wiki.py --check
 ```
