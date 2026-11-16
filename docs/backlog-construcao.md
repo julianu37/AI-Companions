@@ -274,6 +274,191 @@ nunca era verdade e **toda** faltante virava "explicada". Corrigido (comparaçã
 transform do casamento) e coberto por `tools/test_reconcile_scene.py` (5 casos, um deles a peça 6,2 m abaixo).
 **O exit 0 que ele deu às 00:12 não era evidência.**
 
+### 11b. ~~A causa raiz do item 11~~ — **achada e fechada 16/11/2026**
+
+O item 11 estava aberto havia cinco dias com três medições independentes e a mesma frase: "o companheiro vai até o
+walk spot do andar de cima e cai". **A causa não era o walk spot.** É uma checagem que olhava **dois de três eixos**:
+
+```csharp
+// MHR_Build.AdjustPose, antes de 16/11/2026
+float dx = site.Pos.x - state.Pos.x;
+float dz = site.Pos.z - state.Pos.z;
+if (dx * dx + dz * dz > radius * radius) return false;   // o teto estrutural é HORIZONTAL
+```
+
+O `radius` ali é o raio estrutural (1 m para parede/telhado): uma tampa **horizontal**. Não havia nada checando o
+**y**. Quando o companheiro caiu do andar de cima (44,9) para o térreo (38,8) e pediu uma pose nova, o
+`BuildSite.Find` respondeu com **a mesma posição x e z, um andar abaixo** — a peça estava livre ali, e o teste
+horizontal passou **por zero metro**. O log de 16/11/2026 é o mecanismo inteiro numa linha:
+
+```
+log ajustado: piece_chest_wood de (-156,6, 44,9, -421,6) para (-156,6, 38,8, -421,6) - falls
+```
+
+Mesmo x, mesmo z, **6,1 m abaixo**. Essa linha é os **dois** defeitos ao mesmo tempo:
+
+1. o baú do andar de cima era **colocado no térreo** — é a peça que a reconciliação da cena encontra fora do lugar
+   em *toda* run (1 peça, sempre a mesma assinatura: mesmo x/z, y menor);
+2. o companheiro, mandado **andar até ela**, caía os mesmos 6,1 m e morria.
+
+**A correção** é a tabela pura `AI/BuildAdjustPose.cs`: `MayMove(posY, planY, dx, dz, radius)` — o ajuste move a
+peça **de lado, nunca de andar** (tolerância de 1 cm, o arredondamento do próprio parser). Ligada em
+`AdjustPose`, e o teste `(au)` do harness tem **o caso medido como primeiro caso**: aceita 44,9→44,9 com dx/dz
+legítimos, **recusa 44,9→38,8 mesmo com dx=dz=0**.
+
+**Por que agora o teste pega o bug:** a regra antiga, rodada contra o caso medido, devolve `true` (aceita). A nova
+devolve `false`. O caso de aceitação legítima (mesmo andar, 0,8 m de lado) continua `true` nas duas — o fix não
+aperta o que a regra existe para permitir.
+
+**Segunda metade do fix, sem regressão de contador:** com o ajuste recusado, o caminho da queda caía em
+`SkipPiece` e a peça virava `desistindo de` — trocar um bug por uma regressão numérica. Agora o segundo tombo
+devolve a peça **para a fila** (`QueueRetry`), que é literalmente a regra do jogador ("ficar tentando até
+conseguir"); e o **primeiro** tombo já tenta o ajuste (antes só o segundo tentava, então a primeira queda não
+tinha resposta nenhuma). `FallAdjusted` é zerado no retry (`:4238`), então a peça pode ser tentada de novo com
+uma pose nova.
+
+### 11c. ~~A porta voltou para o meio da obra~~ — **regressão do próprio ciclo, achada e fechada 16/11/2026**
+
+O jogador cobrou três vezes a mesma regra: *"as portas precisam ser os últimos itens colocados, pois se não ele
+perde muito tempo abrindo e fechando elas toda hora pra passar"*. O `BuildBlueprintParser.ClassOf` a implementa
+desde 03/11/2026: `door`/`gate` recebe a **classe 4**, a última, e o plano põe todas as portas da obra no fim do
+arquivo. O `BelowIndex` do caminho de retry também a respeita: `ClassOf(...) == 4 ? -1 : index` (`:2032`).
+
+**O gate de andar do item anterior não respeitava.** `PendingBelowPlan` e `LowestPendingBelow` perguntavam só
+"`Below(step.Level, nextLevel)`?" — e uma porta do andar de baixo responde **sim**. Pior: `LowestPendingBelow`
+escolhe a peça de menor `Level` e, havendo empate, a primeira na ordem do plano — então a porta era **servida**,
+isto é, puxada do fim do plano para a frente da caminhada.
+
+**Medido na run de 16/11/2026 (DLL 1.9.6 de 16:24, `CommHomeBasicBP`, 985 peças, 1 companheiro):**
+
+| o que | medido |
+|---|---|
+| índices das 7 `wood_gate` no plano | **979 a 985** (o fim do arquivo, onde a classe 4 as põe) |
+| posição em que foram colocadas | peças **412 a 418** de 510 concluídas |
+| a linha do log | `nada acima de 41,8 m antes do andar de baixo: voltando para wood_gate (979/985) ... - 52 peça(s) pendente(s) abaixo` |
+
+**A correção** é `BuildStoreyGate.CountsAsPending(level, nextLevel, pieceClass)`: a porta (`DoorClass` 4) **não**
+conta como pendência **e não** é servida. A exclusão vale nos dois lados de propósito — excluir só de um lado ou
+devolve a porta ao meio da obra (pelo outro lado), ou trava a obra para sempre (as 7 últimas peças do plano nunca
+seriam colocadas, e o gate jamais deixaria subir). Ligada nas duas funções.
+
+**O teste que pega o bug:** `(aq)` ganhou 5 asserções; a primeira —
+`CountsAsPending(1.0, 2.0, DoorClass) == false` — **falha** no código de 16/11/2026 e passa no de agora. As outras
+fixam que a viga/piso/telhado do andar de baixo **continuam** contando (a exceção é a porta, não a regra).
+
+### 11d. O portão atropelava a espera da fila (a morte da peça 851) — **fechado 16/11/2026**
+A run de 16/11/2026 registrou **1 morte**, e o jogador foi explícito: *"essa morte dele aí é normal, deixa
+realista, afinal uma mortezunha só na run inteira tá de boa"*. A morte em si **não** é tratada como defeito. Mas o
+log mostrou que ela teve um empurrão, e o empurrão é barato de tirar:
+
+```
+a queda nao e o fim da peca: piece_chest_wood volta para a fila em vez de ser dada por perdida (1 queda(s))
+retry later: piece_chest_wood (falls) at (-152,5, 44,9, -427,1) - 1/3      <- a fila deu 2 s de espera
+nada acima de 44,9 m antes do andar de baixo: voltando para piece_chest_wood (851/985)   <- o gate a puxou NO MESMO FRAME
+"Companion" fell 6,8 m and took 18 fall damage                              <- e caiu de novo, do mesmo lugar
+```
+
+**A causa:** `NextRetryBelow` (o caminho de retry mais antigo) sempre checou `Time.time < state.RetryAt` (`:1980`).
+`LowestPendingBelow`, que o gate passou a usar, lê só o **plano** e nunca o relógio da fila. Então a peça que
+acabou de cair e recebeu espera era servida imediatamente — o companheiro voltava para a mesma borda no frame
+seguinte.
+
+**A correção** é `BuildStoreyGate.Servable(queued, due)`, ligada em `LowestPendingBelow`: peça na fila e ainda em
+espera **não** é servível; o gate serve a próxima pendente ou espera. Isso **não** enfraquece a subida — a peça
+continua pendente e continua segurando o andar (a regra do jogador); muda só **qual** peça ganha a vez. Harness
+seção `(aq)`, +3 asserções.
+
+### 11e. O run de fechamento do ciclo 16/11/2026 — **medido, 985/985**
+
+Run solo de `CommHomeBasicBP` (985 peças, 1 companheiro) com a DLL de 16:24, medida **antes** das correções 11c e
+11d entrarem (elas ainda não estavam em jogo — ver a ressalva no fim):
+
+| métrica | run de 23:33 | **run de 16:24** |
+|---|---|---|
+| peças colocadas | 985/985 | **985/985** |
+| `hc_ai_blueprint_done` | sim | **sim** |
+| puladas (contador e fala) | 0 / 0 | **0 / 0** |
+| `desistindo de` | 0 | **0** |
+| quedas | 5 | **4** |
+| mortes | 1 | **1** |
+| resgates | 0 | **0** |
+| `no progress towards` | 2 | **0** |
+| `log ajustado` (peça arrastada de andar) | 1 | **0** |
+| linhas por peça | 3,03 | 3,05 |
+| **reconciliação da cena** | 982 casadas, **1 faltando de verdade** | **983 casadas, 2 explicadas, 0 faltando** |
+
+**O que fechou:** a peça que a reconciliação acusava fora do lugar em *toda* run — o `wood_beam_45` do plano em
+`y=45,0` colocado em `y=38,8` — **não aparece mais**: zero `log ajustado` no log inteiro. É o `BuildAdjustPose`
+(seção 11b) fazendo o trabalho dele.
+
+**O que esta run NÃO provou:** ela rodou com a DLL de 16:24, então as correções 11c (porta) e 11d (espera da fila)
+**não estavam em jogo**. Os dados confirmam os dois defeitos presentes: as 7 portas colocadas na posição 412–418 de
+510, e a peça 851 servida no mesmo frame da queda que culminou na morte. As duas ainda precisam de run com a DLL
+nova.
+
+### 11f. A obra fechou como "incompleta" com todas as peças de pé — **achado e fechado 16/11/2026**
+
+A run de 16:57 (a primeira com as correções 11c e 11d em jogo) foi **um sucesso no que ela foi medir**: as 7 portas
+foram colocadas nas posições **978 a 984 de 985** — as últimas, como o jogador pediu — e a cena reconciliou
+**985/985, 983 casadas, 2 explicadas, 0 faltando de verdade**. Mas ela fechou com uma frase errada:
+
+```
+order ended: hc_ai_blueprint_incomplete (6 peça(s) não subiram)
+```
+
+**As seis estavam de pé.** O próprio log as encontrou, uma linha por peça, antes de fechar:
+
+```
+a peça 986/991 já está de pé (outra tentativa a deixou lá) - seguindo
+a peça 987/991 já está de pé (outra tentativa a deixou lá) - seguindo
+... 988, 989, 990, 991
+```
+
+**A causa:** o retry pass do companheiro único **anexa** ao próprio plano as peças que não subiram
+(`state.Plan.AddRange(again)` em `Advance`), de propósito — o objeto do passo é a identidade da peça, então anexar o
+mesmo objeto deixa a caminhada voltar nela sem remapeamento. O efeito colateral é que `Plan.Count` **cresce**: 985 →
+991. E `PlacedIndices` guarda o **primeiro** índice de cada passo (`PieceIndex`: "a cópia no fim não é outra peça"),
+então nunca passa de 985. O `Finish` comparava `placed` (985) com `planned` = `Plan.Count` (991) e concluía que
+faltavam 6.
+
+**A correção:** `State.PlanTotal`, gravado quando o plano é montado, antes de qualquer retry pass anexar. A tabela
+pura `AI/BuildPlanTotal.cs` (`Of` e `Complete`) decide, e o `Finish` passa a ler o tamanho da **casa**, não o tamanho
+da lista. Os dois lados da regra do jogador continuam valendo, e o harness fixa os dois: **985 de 985 fecha como
+completa** e **984 de 985 continua incompleta**.
+
+### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **aberto, medido 16/11/2026**
+
+A run seguinte (DLL 18:34, `run-final-1120`) expôs que o 11f **não se confirmou em jogo**. Duas medições, ambas
+independentes do log:
+
+**1. Uma peça colocada não existe mais.** As 985 linhas `done:` conferidas uma a uma contra o `build.pieces` dão
+**984 casadas e 1 órfã** — `wood_floor` em `(-160,3, 43,8, -427,5)`, a laje `#692` do plano (`y` local 4,00, mundo
+`(-160.45, 44.0, -427.44)`). Ela foi `placed (Direct)` e `done ... supported` nas linhas 2161-2162 e **não está na
+cena**; nenhuma peça não-pareada aparece a menos de 14 m do alvo, então não foi para o lugar errado: ela deixou o
+mundo. O que veio depois, na ordem exata do log: peça **851/985** → `retry later (falls) 1/3` → `fell 6,8 m and took
+18 fall damage` → morte → `resuming at piece 851` com as mesmas 985 peças. **O resume herdou `PlacedIndices` sem
+verificar que as peças continuam de pé** — é a causa a atacar.
+
+**2. O fechamento mentiu de novo, ao contrário.** `order ended: hc_ai_blueprint_incomplete (14 peça(s) não subiram)`
+sobre um plano de 985. `planned` saiu **999**: a passada de retry anexou 14 peças (985 → 999) e o `PlanTotal` não
+segurou. O número certo era **1**, e é a peça órfã acima.
+
+```
+3266: next: wood_stepladder (986/999) a 12,5 m
+...
+3293: a peça 999/999 já está de pé (outra tentativa a deixou lá) - seguindo
+3295: order ended: hc_ai_blueprint_incomplete (14 peça(s) não subiram)
+```
+
+**O que isso custou em instrumentação (e não pode repetir):** o sampler viu `done=985 in_scene=984 gap=-1` em **20
+amostras seguidas** e o `-1` foi lido como ruído. O `reconcile_scene.py`, que acusou a peça em um segundo, só rodou no
+fim, como formalidade de aceite. **Regra nova:** o reconcile roda **durante** o run, e qualquer `gap` negativo ou peça
+órfã abre alarme na hora, com prefab e posição.
+
+**Aceite deste item:** (a) o resume não herda `PlacedIndices` sem conferir a cena; (b) `PlanTotal` sobrevive à
+passagem que reconstrói o estado no resume; (c) o reconcile roda dentro do ciclo, não depois; (d) a run fecha com o
+número igual ao da reconciliação.
+
 ### 12. ~~O run **grátis** da `CommHomeBasicBP`~~ — **medido 12/11/2026**
 O ciclo `fix/plano-remap` fechou os oito defeitos de código do `MHR_Build` (remapeamento do plano, "já está de pé"
 antes de pagar, abandono contado, watchdog × barreira, `LastY`/walk spot, escada sob o corpo, números do fim do grupo)

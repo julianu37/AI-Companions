@@ -2,7 +2,62 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
-## 1.9.7 - in progress
+## 1.9.7 - 16/11/2026
+
+**A house with every piece standing no longer closes as unfinished.** The single worker's retry pass **appends** to the
+same plan the pieces that did not stand yet — on purpose, since the step object is the piece's identity — so `Plan.Count`
+grows while the placed count, which holds the **first** index of each step, cannot. Measured in the run of 16/11/2026
+(985 pieces, the doors correctly LAST at positions 978-984): 6 pieces failed to stand on the first pass, the retry pass
+appended them, and the order closed saying `hc_ai_blueprint_incomplete (6 peça(s) não subiram)` — about six pieces **the
+same log had just found standing**, one line per piece (`a peça 986/991 já está de pé (outra tentativa a deixou lá)`).
+The house's size is now the plan's size when the order started (`State.PlanTotal`) and the completion test reads it
+through `AI/BuildPlanTotal.cs`: a plan that reached its size closes as **complete** and one short of it still closes as
+**incomplete** — the player's rule "no build with a piece missing ever closes as done" has a mirror, and it is that a
+build with no piece missing never closes as unfinished. Harness section **(aq)**, 1225 assertions.
+
+> **Not confirmed in play (16/11/2026, the run after this one):** that run closed `incomplete (14 peça(s) não subiram)`
+> on a 985-piece plan — `planned` read **999** — so the counter this entry fixes still did not hold on a run that
+> **died and resumed**. Everything else the run measures is sound (985 `done` lines, 984 of them standing, the doors
+> last); what is open is the number at the end. See `docs/backlog-construcao.md` item 11g.
+
+**Doors are the last pieces again.** The player asked for it three times — *"as portas precisam ser os últimos itens
+colocados, pois se não ele perde muito tempo abrindo e fechando elas toda hora pra passar"* — and the blueprint parser
+implements it (`ClassOf` gives a `door`/`gate` the **last** class, so every door of a house lands in the tail of the plan).
+The **storey gate** added in this same cycle did not know that: it asked only "is this piece below the one I want?" and a
+door of the floor below answers yes — and worse, the gate's `LowestPendingBelow` then **served** it, pulling the door out
+of the tail and into the middle of the build. Measured on `CommHomeBasicBP` (985 pieces, 16/11/2026): the 7 `wood_gate` are
+plan indices **979-985**, and the run placed them as pieces **412 to 418** of 510 — `nada acima de 41,8 m antes do andar de
+baixo: voltando para wood_gate (979/985)`. The fix is `BuildStoreyGate.CountsAsPending`, which excludes the door class
+from **both** sides of the gate: a door never counts as a pending piece (otherwise a plan whose last 7 pieces are doors
+could never be allowed to climb, and the order would deadlock on the pieces it is supposed to end with) and is never the
+piece the gate serves. The older retry path already knew this (`BelowIndex`: `ClassOf == 4 ? -1 : index`); the gate's own
+two methods had forgotten it. Harness section **(aq)**, 1220 assertions.
+
+**A fallen piece is not retried on the same breath.** When the companion fell walking to a chest, the fall path put the
+piece back in the queue with its wait — and the storey gate served the **same piece** on the next frame, sending it back to
+the same edge. Measured in the run of 16/11/2026, three lines deep: `a queda nao e o fim da peca: piece_chest_wood volta
+para a fila`, `retry later: piece_chest_wood (falls) at (-152,5, 44,9, -427,1) - 1/3`, `voltando para piece_chest_wood
+(851/985)`, `fell 6,8 m and took 18 fall damage` — and then the death. The older retry path always checked the queue's
+clock (`NextRetryBelow`: `Time.time < state.RetryAt`); the gate's own `LowestPendingBelow` read the plan and never the
+clock. The queue's wait now binds the gate as well (`BuildStoreyGate.Servable`): a piece queued and not yet due is not
+servable, so the gate takes the next pending piece or waits. It never weakens the climb — the pending piece still holds
+the storey, which is the player's rule — it only changes **which** piece gets the turn. Harness section **(aq)**, 1220
+assertions.
+
+**A pose adjustment no longer drops a piece a whole storey, and a fall no longer costs the piece.** `AdjustPose` exists
+so a piece whose planned pose the game refuses can be nudged into a spot that stands — and it validated the nudge as a
+**horizontal** distance (`dx`/`dz` against `radius`) with **nothing on the vertical axis**. So when the companion fell
+from the top storey to the ground floor, `BuildSite.Find` answered with the same XZ one storey down, `dx² + dz² = 0` came
+back inside the radius, and the piece was planted on the wrong floor. Measured in the 985-piece house, 15/11/2026, the same
+line on every run: `log ajustado: piece_chest_wood de (-156,6, 44,9, -421,6) para (-156,6, 38,8, -421,6) - falls` — a
+chest of the **44,9** storey nailed down at **38,8**, and the reconciliation of the finished scene against the blueprint
+flagged it as the one piece of 985 out of place every single time. The same drag is what walked the companion off the
+storey (and, in the worst run, to a **death**): the target's Y became the ground height, so the body followed the piece
+down. The rule is now a pure table, `AI/BuildAdjustPose.cs`: the nudge may move the piece **sideways up to the radius and
+never to another storey** (1 cm of slack for the same slab), and NaN/Inf/negative radius never move anything. A second
+half: a **fall** used to end in `SkipPiece` after three tries, so the storey gate could never see it again — a fall now
+tries the (now safe) pose adjustment first and otherwise **puts the piece back in the queue** (`falls` is a real failure,
+so the attempts still cap it) instead of giving it up. Harness section **(au)**, 1212 assertions.
 
 **A companion walled in by its own build no longer stays walled in.** The emergency escape had three clocks and every
 one of them was reset by the thing that was trying to help: walking 0,5 m restarted "has not moved", a retry

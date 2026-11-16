@@ -147,6 +147,7 @@ internal static class Program
 		new SectionDef("ar", "BuildRescue - o companheiro enjaulado sai do lugar (contado, nunca o jogador)", Rescues),
 		new SectionDef("as", "BuildRecovery/Finish - a obra nao fecha com peca faltando", IncompleteOrders),
 		new SectionDef("at", "BuildProgress - a obra retomada nao recaminha o que ja esta de pe", ResumeProgress),
+		new SectionDef("au", "BuildAdjustPose - o ajuste move a peca de lado, nunca de andar", AdjustPoseStorey),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2045,6 +2046,76 @@ internal static class Program
 		Check("a paciencia da barreira nao compra a subida (46 pendentes abaixo do portao)",
 			!BuildStoreyGate.MayTake(40.8f, 46, false) && !BuildStoreyGate.MayTake(40.8f, 1, false),
 			"next 40,8 com 46 e com 1 pendente abaixo");
+
+		// 11) 16/11/2026, THE MEASURED REGRESSION OF THIS CYCLE: the player asked three times for the doors to be the LAST
+		//     pieces ("as portas precisam ser os últimos itens colocados, pois se não ele perde muito tempo abrindo e
+		//     fechando elas toda hora pra passar"), and the gate brought them back into the middle of the house. On
+		//     CommHomeBasicBP the 7 wood_gate are plan indices 979-985 - the tail, where ClassOf 4 puts them - and the run
+		//     placed them as pieces 412 to 418 of 510. The gate asked only "is it below?", and a door of the storey below
+		//     answered yes, so LowestPendingBelow served it.
+		Check("ClassOf da porta e a classe 4 (a ultima do plano)",
+			BuildBlueprintParser.ClassOf("wood_gate") == BuildStoreyGate.DoorClass
+			&& BuildBlueprintParser.ClassOf("dungeon_door") == BuildStoreyGate.DoorClass
+			&& BuildBlueprintParser.ClassOf("wood_door") == BuildStoreyGate.DoorClass,
+			"wood_gate/dungeon_door/wood_door = " + BuildBlueprintParser.ClassOf("wood_gate"));
+
+		// the measured case verbatim: the door is a storey below the piece the walk wants, and it STILL does not count -
+		// this is the assertion that fails on the code of 16/11/2026 (it answered true)
+		Check("a porta abaixo NAO conta como pendencia (o caso medido: 7 portas puxadas para a peca 412)",
+			!BuildStoreyGate.CountsAsPending(1.0f, 2.0f, BuildStoreyGate.DoorClass),
+			"CountsAsPending(door, Level 1,0, next 2,0)");
+
+		// ... and the same door is NOT the piece the gate serves either - if it were, the exclusion above would only move
+		// the pull to the other half of the rule
+		Check("a porta tambem nao e a peca que o portao serve (a exclusao vale nos dois lados)",
+			!BuildStoreyGate.CountsAsPending(1.0f, 2.0f, BuildStoreyGate.DoorClass)
+			&& BuildStoreyGate.CountsAsPending(1.0f, 2.0f, 2),
+			"same level: door vs beam (class 2)");
+
+		// a structural piece of the same storey below keeps counting exactly as before - the fix is a door exception, not a
+		// weakening of the gate (the 63 pending floors the player photographed are still 63)
+		Check("a viga abaixo continua contando (a excecao e a porta, nao a regra)",
+			BuildStoreyGate.CountsAsPending(1.0f, 2.0f, 2) && !BuildStoreyGate.CountsAsPending(2.0f, 2.0f, 2),
+			"beam Level 1,0 / 2,0 vs next 2,0");
+
+		// a roof (class 3) and a floor (class 0) are not doors: they keep holding the climb
+		Check("telhado e piso abaixo continuam segurando a subida",
+			BuildStoreyGate.CountsAsPending(1.0f, 2.0f, 3) && BuildStoreyGate.CountsAsPending(1.0f, 2.0f, 0),
+			"roof (3) and floor (0)");
+
+		// 12) 16/11/2026, THE DEATH OF PIECE 851: the companion fell walking to a chest, the fall path queued it with a wait
+		//     ("retry later: piece_chest_wood (falls) - 1/3"), and the NEXT line is the gate serving the same piece again
+		//     ("voltando para piece_chest_wood (851/985)") - then "fell 6,8 m and took 18 fall damage". The queue's clock was
+		//     there and the gate walked over it. Servable is that clock, read by the gate.
+		Check("a peca na fila e ainda na espera NAO e servida pelo portao (a morte da peca 851)",
+			!BuildStoreyGate.Servable(true, false), "queued, not due");
+		Check("a peca na fila com a espera vencida volta a ser servivel",
+			BuildStoreyGate.Servable(true, true), "queued, due");
+		Check("a peca que nunca falhou e servivel na hora (a espera e da fila, nao do plano)",
+			BuildStoreyGate.Servable(false, false) && BuildStoreyGate.Servable(false, true), "not queued");
+
+		// 13) 16/11/2026, THE FALSE "incomplete" OF THE RUN OF 16:57: 985 pieces, the 7 doors correctly LAST (positions
+		//     978-984), and the order closed as "hc_ai_blueprint_incomplete (6 peça(s) não subiram)" - about six pieces the
+		//     same log had just found standing ("a peça 986/991 já está de pé (outra tentativa a deixou lá)"). The retry pass
+		//     appends to the SAME plan, so Plan.Count grew 985 -> 991, while PlacedIndices holds the FIRST index of each step
+		//     and tops out at 985. The house's size is the plan's size when the order started.
+		Check("o tamanho da casa e o plano de quando comecou, nao a lista que cresceu",
+			BuildPlanTotal.Of(985, 991) == 985, "Of(planTotal 985, planCount 991) = " + BuildPlanTotal.Of(985, 991));
+
+		// the measured false negative, verbatim: 985 standing of a 985-piece house that grew to 991 must read COMPLETE
+		Check("985 colocadas numa casa de 985 fecham como COMPLETA (o falso '6 nao subiram')",
+			BuildPlanTotal.Complete(985, 985), "Complete(985, 985)");
+		Check("... e NAO fecham quando comparadas com a lista crescida (o bug medido)",
+			!BuildPlanTotal.Complete(985, 991), "Complete(985, 991) - o bug de 16:57");
+
+		// the other direction, which the player's rule protects: a piece really missing never closes as complete
+		Check("uma peca de verdade faltando continua INCOMPLETA (a regra do jogador)",
+			!BuildPlanTotal.Complete(984, 985) && !BuildPlanTotal.Complete(0, 985), "Complete(984, 985) / (0, 985)");
+
+		// a plan with no total of its own (a template, a single piece) falls back to the list's size, and never to zero
+		Check("sem total proprio, o tamanho e o da lista; nunca zero",
+			BuildPlanTotal.Of(0, 12) == 12 && BuildPlanTotal.Of(0, 0) == 1 && BuildPlanTotal.Of(-5, 3) == 3,
+			"Of(0,12) / (0,0) / (-5,3)");
 	}
 
 	/// <summary>Section (ar): <c>BuildRescue</c> - <b>the caged companion leaves the place</b>, and only under the three
@@ -2189,6 +2260,62 @@ internal static class Program
 		// 6) the edge of the range, literally
 		Check("o ultimo indice do plano e valido, o plano inteiro nao",
 			BuildProgress.InPlan(984, 985) && !BuildProgress.InPlan(985, 985), "InPlan(984/985, 985)");
+	}
+
+	/// <summary>
+	/// Section (au) - <c>BuildAdjustPose</c>: an adjusted pose moves a piece sideways, never up or down a storey.
+	///
+	/// The case measured on 16/11/2026 is the first one here, because it is the one that cost three runs: the companion fell
+	/// from the top storey (44,9) to the ground floor (38,8), and the adjustment answered with the SAME x and z one storey
+	/// down - which passed the horizontal cap by exactly zero metres.
+	/// </summary>
+	private static void AdjustPoseStorey()
+	{
+		// 1) THE MEASURED CASE, verbatim from the log: same x, same z, 6,1 m down. The horizontal test passes perfectly
+		//    (dx = dz = 0) and that is exactly why the old check never saw it - the piece of the upper floor was placed on
+		//    the ground floor and the companion died walking to it.
+		bool measured = BuildAdjustPose.MayMove(38.8f, 44.9f, 0f, 0f, 1f);
+		Check("a pose um andar abaixo e recusada (o caso medido: 44,9 -> 38,8, mesmo x/z)",
+			!measured, "MayMove(38,8, 44,9, dx 0, dz 0, r 1) = " + measured);
+
+		// 2) the same by 0,5 m instead of 6,1: still another storey, still refused. This is what keeps a "nudge" from
+		//    quietly dropping a slab through the floor it belongs to.
+		Check("meio metro abaixo ja e outro andar",
+			!BuildAdjustPose.MayMove(44.4f, 44.9f, 0f, 0f, 1f), "MayMove(44,4, 44,9)");
+
+		// 3) the rule it exists for: a real nudge inside the structural radius, same storey, is accepted
+		Check("o ajuste que a regra existe para permitir continua passando",
+			BuildAdjustPose.MayMove(44.9f, 44.9f, 0.8f, 0.5f, 1f), "MayMove(dx 0,8, dz 0,5, r 1)");
+
+		// 4) 1 cm of slack, the parser's own rounding - a piece and its own storey are never split by rounding
+		Check("1 cm de folga: o arredondamento do parser nao separa o proprio andar",
+			BuildAdjustPose.MayMove(44.905f, 44.9f, 0f, 0f, 1f)
+			&& BuildAdjustPose.MayMove(44.895f, 44.9f, 0f, 0f, 1f), "MayMove(+/-0,005)");
+
+		// 5) ... and 2 cm is already out: the tolerance is a rounding allowance, not a licence
+		Check("2 cm acima ja sai do andar",
+			!BuildAdjustPose.MayMove(44.92f, 44.9f, 0f, 0f, 1f), "MayMove(44,92, 44,9)");
+
+		// 6) the horizontal cap is still enforced - the vertical rule ADDS to it, it does not replace it
+		Check("o raio horizontal continua valendo (a regra nova soma, nao substitui)",
+			!BuildAdjustPose.MayMove(44.9f, 44.9f, 1.2f, 0f, 1f)
+			&& BuildAdjustPose.MayMove(44.9f, 44.9f, 0.6f, 0.6f, 1f), "MayMove(dx 1,2 r 1) / (0,6+0,6 r 1)");
+
+		// 7) a wider radius (furniture) accepts what the structural one refused, and still refuses the storey
+		Check("raio maior aceita na horizontal e continua recusando na vertical",
+			BuildAdjustPose.MayMove(44.9f, 44.9f, 2.0f, 0f, 2.5f)
+			&& !BuildAdjustPose.MayMove(38.8f, 44.9f, 0f, 0f, 2.5f), "MayMove(r 2,5)");
+
+		// 8) a coordinate that is not a number never moves anything (the ray side can produce one)
+		Check("NaN e infinito nunca movem a peca",
+			!BuildAdjustPose.MayMove(float.NaN, 44.9f, 0f, 0f, 1f)
+			&& !BuildAdjustPose.MayMove(44.9f, float.NaN, 0f, 0f, 1f)
+			&& !BuildAdjustPose.MayMove(44.9f, 44.9f, float.PositiveInfinity, 0f, 1f)
+			&& !BuildAdjustPose.MayMove(44.9f, 44.9f, 0f, 0f, float.NaN), "NaN/Inf");
+
+		// 9) a negative radius is not a radius (nothing may move freely)
+		Check("raio negativo nao move nada",
+			!BuildAdjustPose.MayMove(44.9f, 44.9f, 0f, 0f, -1f), "MayMove(r -1)");
 	}
 
 	/// <summary>Section (y): <c>BuildAsideSpot</c> - <b>where the companion of the site steps to</b> when another one has

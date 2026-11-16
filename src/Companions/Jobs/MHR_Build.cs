@@ -404,6 +404,15 @@ internal static class MHR_Build
 		/// <see cref="BuildRecovery.QueueGap"/> other pieces went up. Counted up by <see cref="CountPlaced"/> and never
 		/// reset; the per-piece stamp is <see cref="PlannedStep.SkippedAfter"/>.</summary>
 		internal int PlacedTotal;
+		/// <summary>
+		/// 16/11/2026 (the false `hc_ai_blueprint_incomplete` of the run of 16:57): how many pieces the <b>plan</b> had when
+		/// the order started - before any retry pass. <c>Plan.Count</c> cannot answer this: the single worker's retry pass
+		/// <b>appends</b> the pieces that did not stand to the end of the same list (<c>Plan.AddRange</c>), so a house of 985
+		/// pieces whose last 6 came back reads <c>Plan.Count == 991</c> while <c>PlacedIndices</c> - which holds the
+		/// <b>first</b> index of each step (<c>PieceIndex</c>) - can never exceed 985. <c>Finish</c> compared the two and
+		/// ended the order saying <c>6 peça(s) não subiram</c> about six pieces that the log itself had just found standing
+		/// (<c>a peça 986/991 já está de pé</c>). The completion test reads this number, never the grown list.</summary>
+		internal int PlanTotal;
 		/// <summary>E7: the square the site clearing covers (the plan's footprint, centred on the aim).</summary>
 		internal Vector3 ClearCenter;
 		internal float ClearSize;
@@ -1851,7 +1860,7 @@ internal static class MHR_Build
 		for (int i = 0; i < state.Plan.Count; i++)
 		{
 			PlannedStep step = state.Plan[i];
-			if (step == null || !BuildStoreyGate.Below(step.Level, nextLevel))
+			if (step == null || !BuildStoreyGate.CountsAsPending(step.Level, nextLevel, BuildBlueprintParser.ClassOf(step.Prefab)))
 			{
 				continue;
 			}
@@ -1886,11 +1895,18 @@ internal static class MHR_Build
 		for (int i = 0; i < state.Plan.Count; i++)
 		{
 			PlannedStep step = state.Plan[i];
-			if (step == null || !BuildStoreyGate.Below(step.Level, nextLevel))
+			if (step == null || !BuildStoreyGate.CountsAsPending(step.Level, nextLevel, BuildBlueprintParser.ClassOf(step.Prefab)))
 			{
 				continue;
 			}
 			if (SettledPieces.Out(PieceIdentity(state, i), placed, givenUp))
+			{
+				continue;
+			}
+			// 16/11/2026 (the death of piece 851): the queue's own clock binds the gate too. A piece that just fell is
+			// queued with a wait; serving it again in the same frame is what walked the companion back to the same edge.
+			bool isQueued = state.Retry != null && state.Retry.Contains(step);
+			if (!BuildStoreyGate.Servable(isQueued, Time.time >= state.RetryAt))
 			{
 				continue;
 			}
@@ -6721,6 +6737,7 @@ internal static class MHR_Build
 			Log(ai, "plan short at the start: " + MissingText(missing) + " - the gather takes over when the first piece needs it");
 		}
 		state.Plan = plan;
+		state.PlanTotal = plan.Count;   // 16/11/2026: before any retry pass appends to the same list
 		state.Anchor = anchor;
 		state.AnchorRot = baseRot;
 		state.AnchorKnown = true;
@@ -6946,22 +6963,25 @@ internal static class MHR_Build
 		if (state.LastY > 0.01f && me.y < state.LastY - 0.8f)
 		{
 			state.FallDrops++;
-			if (state.FallDrops >= 2 && state.Blueprint != null)
+			// 16/11/2026 (the fatal fall of three measured runs): the fall is never a reason to give the piece up on the
+			// spot. The player's rule is "ficar tentando até conseguir", and this piece is not unreachable - the companion
+			// is. The first fall already adjusts the pose (a metre to the side is the same house, and the walk may be off
+			// the edge there); the second puts the piece back in the QUEUE so the site's own ladder retries it, and the
+			// walk moves on to a piece it can reach instead of standing at the edge falling again. Before this, the
+			// second fall called SkipPiece, which counted the piece as given up for the rest of the order - the 135
+			// "desistindo de" of the run of 15/11/2026 were mostly this path.
+			if (AdjustFallenPose(ai, state))
 			{
-				// P1 (04/11/2026): before giving the piece up, ONE adjusted pose inside the structural 1 m (the walk to the
-				// plan's pose goes over a hole / past the edge - a gable top above the void). The set is the piece's plan
-				// index, so the second pair of falls skips it as before.
-				if (AdjustFallenPose(ai, state))
-				{
-					state.FallDrops = 0;
-					state.LastY = me.y;   // the drop he just took is counted: the next frame starts a new pair
-					return true;          // walking to the adjusted pose
-				}
-				Log(ai, "falling from the way to the " + state.Prefab + " - skipping it (" + state.FallDrops + " fall(s))");
-				SkipPiece(ai, state, "falls");
 				state.FallDrops = 0;
-				return Advance(ai, state, dt);
+				state.LastY = me.y;   // the drop he just took is counted: the next frame starts a new pair
+				return true;          // walking to the adjusted pose
 			}
+			int drops = state.FallDrops;
+			Log(ai, "a queda nao e o fim da peca: " + state.Prefab + " volta para a fila em vez de ser dada por perdida ("
+				+ drops + " queda(s))");
+			state.FallDrops = 0;
+			QueueRetry(ai, state, "falls");
+			return Advance(ai, state, dt);
 		}
 		state.LastY = me.y;
 		// 15/11/2026: the placement reach of THIS order, read once per frame - the blueprint uses the game's ceiling (20 m)
@@ -8244,9 +8264,18 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		}
 		float dx = site.Pos.x - state.Pos.x;
 		float dz = site.Pos.z - state.Pos.z;
-		if (dx * dx + dz * dz > radius * radius)
+		// 16/11/2026 (the fatal fall of three measured runs, the same edge of the top storey): THIS TEST ONLY LOOKED AT TWO
+		// OF THE THREE AXES. The structural cap is horizontal, so a pose with the SAME x and z was accepted whatever its
+		// height - and when the companion fell from the top storey (44,9) to the ground floor (38,8) looking for a new
+		// pose, BuildSite.Find answered with the piece ON THE GROUND FLOOR, dx = dz = 0, and the check below passed. The
+		// log of 16/11/2026 is the mechanism in one line:
+		//   log ajustado: piece_chest_wood de (-156,6, 44,9, -421,6) para (-156,6, 38,8, -421,6) - falls
+		// Same x, same z, 6,1 m down: the chest of the upper floor was placed on the ground floor (the one piece the scene
+		// reconciliation finds out of place, on every run) and the companion walking to it fell the same 6,1 m and died.
+		// The rule is the table BuildAdjustPose: a nudged piece moves SIDEWAYS, never up or down a storey.
+		if (!BuildAdjustPose.MayMove(site.Pos.y, state.Pos.y, dx, dz, radius))
 		{
-			return false;   // a structural piece 1 m off the plan is not the same house (a 5 m furniture pose is already capped)
+			return false;   // another storey is another piece of the house (or too far sideways: the caller keeps its pose)
 		}
 		Vector3 me = ai.transform.position;
 		Vector3 eye = new Vector3(me.x, me.y + EyeHeight, me.z);
@@ -9108,7 +9137,11 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		int placed;
 		int skippedCount;
 		SiteCounters(state, out placed, out skippedCount);
-		int planned = state.Plan != null && state.Plan.Count > 0 ? state.Plan.Count : 1;
+		// 16/11/2026: the plan GROWS with the retry pass (Plan.AddRange appends the pieces that did not stand), so
+		// `Plan.Count` is not how many pieces the house has. `placed` counts the FIRST index of each step (PieceIndex), so
+		// it can never reach a grown count - the run of 16:57 read 985 vs 991 and closed as "6 peça(s) não subiram" on
+		// six pieces the same log found standing. The house's size is the plan's size when the order started.
+		int planned = BuildPlanTotal.Of(state.PlanTotal, state.Plan != null ? state.Plan.Count : 0);
 		float siteWalked = state.Group != null ? MHR_BuildGroup.Walk(state.Group) : state.WalkMeters;
 		// P1 (multi-build): the worker leaves the site - its piece is free for the others right away, and the group is
 		// dropped when the last one leaves (the plan's pieces that are left are lost with it, like a cancelled order)
@@ -9143,7 +9176,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 15/11/2026 (the player's rule "peças faltando na construção não será tolerado"): a blueprint that still has a piece
 		// out NEVER closes as `done`. The order ends (every rung of the recovery ladder is spent), and it says `incomplete`
 		// with the number - what the player forbade is the mod claiming a house is finished when it is not.
-		if (state.Blueprint != null && placed < planned && "hc_ai_blueprint_done".Equals(key))
+		if (state.Blueprint != null && !BuildPlanTotal.Complete(placed, planned) && "hc_ai_blueprint_done".Equals(key))
 		{
 			key = "hc_ai_blueprint_incomplete";
 			args = new object[] { state.Blueprint, placed, planned, planned - placed };

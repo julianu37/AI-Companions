@@ -13,9 +13,9 @@ IA** (LLM/voz/fala) + **localização** por cima.
 
 | item | valor |
 |---|---|
-| versão | **1.9.6** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` já tem a seção `1.9.7 - in progress` |
+| versão | **1.9.7** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` tem a seção `1.9.7 - 16/11/2026` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **1203 PASS / 0 FAIL** em **47 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
+| harness (redes por palavras + tabelas puras) | **1225 PASS / 0 FAIL** em **48 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
 | MCP mock (sem jogo) | **135 PASS / 0 FAIL** |
 | reconciliacao cena x blueprint | `python tools/test_reconcile_scene.py` → **5 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
@@ -43,7 +43,7 @@ dotnet run --project tools/ai-intents-check -c Release
 python tools/mcp-devbridge/test_mcp_devbridge.py
 
 # gate de release: roda build, versão x nome do zip, 3 traduções, locale-fallback, config-doc, MCP e harness
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version 1.9.6
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-check.ps1 -Version 1.9.7
 #   -SkipGame (pula o locale-fallback, que lê a DLL publicada no Valheim) | -SkipIntents (pula o harness, o item mais lento)
 
 # traduções / config (todos com exit code)
@@ -61,7 +61,7 @@ python tools/publish_wiki.py --check
 python tools/publish_wiki.py
 
 # staging do pacote (NUNCA montar o zip à mão)
-python tools/stage_release.py --version 1.9.6 --from "C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\AI-Companions" --to pkg\1.9.6\stage [--no-models]
+python tools/stage_release.py --version 1.9.7 --from "C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\AI-Companions" --to pkg\1.9.7\stage [--no-models]
 ```
 
 **Não existe CI** (não há `.github/`): a verificação é toda local, por esses scripts.
