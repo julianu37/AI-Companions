@@ -15,12 +15,12 @@ IA** (LLM/voz/fala) + **localização** por cima.
 |---|---|
 | versão | **1.9.7** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` tem a seção `1.9.7 - 16/11/2026` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **1225 PASS / 0 FAIL** em **48 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
+| harness (redes por palavras + tabelas puras) | **1236 PASS / 0 FAIL** em **48 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
 | MCP mock (sem jogo) | **135 PASS / 0 FAIL** |
 | reconciliacao cena x blueprint | `python tools/test_reconcile_scene.py` → **5 PASS / 0 FAIL** |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/construcao-enjaulada` (a linha de release é a `main`) |
+| branch de trabalho | `fix/buildspread-picknear` (a linha de release é a `main`) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 
