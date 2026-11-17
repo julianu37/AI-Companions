@@ -20,6 +20,28 @@ import mcp_devbridge
 
 LOG = mcp_devbridge.LOG_PATH
 
+
+def gap_alarm(row, previous_gap):
+    """The line to print when the counter and the scene disagree, or None.
+
+    Measured 16/11/2026: the sampler saw done=985 in_scene=984 for 20 samples in a row and the -1 was read
+    as noise - the orphan piece was only named by the reconciliation, at the end, as an acceptance formality.
+    The gap is worth one line the first time it appears and again only when it gets worse, so a healthy run
+    prints nothing and a broken one cannot be missed.
+    """
+    done = row.get("done")
+    in_scene = row.get("in_scene")
+    if not isinstance(done, int) or not isinstance(in_scene, int):
+        return None
+    # the sign is the backlog's own (16/11/2026: done=985, in_scene=984 -> gap=-1): how much the SCENE is
+    # short of what the mod claims, negative meaning a piece the counter counts and the world does not have
+    gap = in_scene - done
+    if gap == 0 or previous_gap == gap or abs(gap) < abs(previous_gap or 0):
+        return None
+    return "ALARME %s: o contador do mod diz %d peca(s) e a cena tem %d (gap %+d)" % (
+        row.get("t", "?"), done, in_scene, gap)
+
+
 # (label, substring) - the same counters the run reports are written from
 COUNTERS = [
     ("done", "done: "),
@@ -103,6 +125,7 @@ def main():
     sink = open(args.out, "a", encoding="utf-8") if args.out else None
     try:
         done = 0
+        last_gap = None
         while args.count == 0 or done < args.count:
             try:
                 row = sample(args, baseline)
@@ -110,6 +133,10 @@ def main():
                 row = {"t": time.strftime("%H:%M:%S"), "error": "%s: %s" % (type(exc).__name__, exc)}
             text = json.dumps(row, ensure_ascii=False)
             print(text, flush=True)
+            alarm = gap_alarm(row, last_gap)
+            if alarm is not None:
+                print(alarm, flush=True)
+                last_gap = row["in_scene"] - row["done"]
             if sink is not None:
                 sink.write(text + "\n")
                 sink.flush()
