@@ -1387,9 +1387,21 @@ internal static class MHR_Build
 				// ahead of it and gets walked to, one by one, only to be found standing. That is a full re-walk, not a check:
 				// 3 m to 17 m of walking per piece and a log line each. A piece already in `PlacedIndices` needs no walking,
 				// no material and no verification - it IS the answer this step would reach - so the walk steps over it.
+				// 17/11/2026 (backlog 11g, the measured hole): being in `PlacedIndices` is an INTENTION - the world can take
+				// the piece back (a fall, a collapse, a body landing on it). The measured run closed `done` with the set at
+				// 985 and the scene at 984, and this skip is why: the retry pass walked over the lost piece without looking.
+				// The index is stepped over only when the SCENE agrees; otherwise the piece comes back into the walk (its
+				// index leaves the set, so `EnterStep`/`Place` take it and `AlreadyStanding` still prevents a double pay).
 				if (state.Group == null && state.PlacedIndices.Contains(next))
 				{
-					continue;
+					if (SceneHasStep(ai, state, next))
+					{
+						continue;
+					}
+					state.PlacedIndices.Remove(next);
+					state.PlacedTotal = Mathf.Max(0, state.PlacedTotal - 1);
+					Log(ai, "a peça " + (next + 1) + "/" + BuildPlanTotal.Of(state.PlanTotal, state.Plan.Count)
+						+ " está na lista mas não está de pé - voltando a ela");
 				}
 				// 11/11/2026 (Run 14, the spread of the crew): the plan's consecutive indices are NEIGHBOURS in space, so five
 				// companions reach for the same corner (88 "corpo na peça" and 32 step-aside asks in the measured log). With a
@@ -7753,6 +7765,30 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// line ("outra tentativa a deixou lá"): the difference between "another worker's attempt" and "the retry pass of this
 	/// one" is what tells the player which half found it.</para>
 	/// </summary>
+	/// <summary>
+	/// 17/11/2026 (backlog 11g): <b>is the plan piece at <paramref name="index"/> really in the world?</b> - the question
+	/// the retry pass used to skip. It is <c>BuildExecutor.VerifyAt</c> with the pose AND the orientation (a neighbour of
+	/// the same prefab is not this piece), the same question <see cref="AlreadyStanding"/> asks before paying. The sweep
+	/// of <see cref="RecheckStanding"/> is not reused here: that one is a radius around the body and answers for many
+	/// indices at once; this one answers for one exact pose, which is what the walk needs.
+	/// </summary>
+	private static bool SceneHasStep(CompanionAI ai, State state, int index)
+	{
+		if (state == null || state.Plan == null || index < 0 || index >= state.Plan.Count)
+		{
+			return false;
+		}
+		PlannedStep step = state.Plan[index];
+		if (step == null || step.Piece == null)
+		{
+			return false;   // nothing to look for: keep the treatment of before (trusted)
+		}
+		CompanionSetup cs = ai != null ? ai.GetComponent<CompanionSetup>() : null;
+		long creator = BuildExecutor.CreatorOf(cs, Player.m_localPlayer);
+		GameObject existing;
+		return BuildExecutor.VerifyAt(step.Piece, step.Pos, step.Rot, creator, out existing) == null;
+	}
+
 	private static bool AlreadyStanding(CompanionAI ai, State state, CompanionSetup cs, string what = "outra tentativa a deixou lá")
 	{
 		if (state == null || state.Piece == null)

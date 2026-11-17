@@ -48,33 +48,32 @@ def gap_alarm(row, state):
     Measured 16/11/2026: the sampler saw done=985 in_scene=984 for 20 samples in a row and the -1 was read as
     noise - the orphan piece was named only by the reconciliation, at the end, as an acceptance formality.
 
-    Two things learned by replaying the recorded runs of 17/11/2026:
-    - the benign direction is the scene AHEAD of the counter (+1..+7): the piece exists in the world a moment
-      before its `done:` line is written. Only `in_scene < done` is a hole, so only that side alarms.
-    - a hole does not need a line per sample. It speaks on the 3rd sample in a row of the same direction (one
-      sighting is a race; the 16/11 hole held for 20) and then stays quiet until the pair agrees again.
+    Measured 17/11/2026: the benign direction is the scene AHEAD of the counter (+1..+7), because the piece exists
+    in the world a moment before its `done:` line is written. Only `in_scene < done` is a hole.
 
-    `state` is the dict the caller keeps between samples ({"streak": n, "spoken": bool}).
+    The threshold is ONE sample. The first version waited for three in a row, calibrated on the 20-sample case of
+    16/11, and it MISSED the real hole of 17/11, which showed in two samples. A false alarm costs one log line; a
+    silent hole costs a house with a piece missing - so the alarm speaks on the first sighting and then stays quiet
+    until the pair agrees again (one line per episode, not one per sample).
+
+    `state` is the dict the caller keeps between samples ({"spoken": bool}).
     """
     done = row.get("done")
     in_scene = row.get("in_scene")
     if not isinstance(done, int) or not isinstance(in_scene, int):
-        state["streak"] = 0
         state["spoken"] = False
         return None
     # the sign is the backlog's own (16/11/2026: done=985, in_scene=984 -> gap=-1): how much the SCENE is
     # short of what the mod claims - negative is the hole
     gap = in_scene - done
     if gap >= 0:
-        state["streak"] = 0
         state["spoken"] = False
         return None
-    state["streak"] = state.get("streak", 0) + 1
-    if state["streak"] < 3 or state.get("spoken"):
+    if state.get("spoken"):
         return None
     state["spoken"] = True
-    return "ALARME %s: o contador do mod diz %d peca(s) e a cena tem %d (gap %+d) ha %d amostra(s)" % (
-        row.get("t", "?"), done, in_scene, gap, state["streak"])
+    return "ALARME %s: o contador do mod diz %d peca(s) e a cena tem %d (gap %+d)" % (
+        row.get("t", "?"), done, in_scene, gap)
 
 def log_lines(baseline):
     try:
@@ -137,7 +136,7 @@ def main():
     sink = open(args.out, "a", encoding="utf-8") if args.out else None
     try:
         done = 0
-        alarm_state = {"streak": 0, "spoken": False}
+        alarm_state = {"spoken": False}
         while args.count == 0 or done < args.count:
             try:
                 row = sample(args, baseline)

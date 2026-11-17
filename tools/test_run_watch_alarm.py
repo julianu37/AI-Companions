@@ -55,28 +55,24 @@ class Rule(unittest.TestCase):
         for gap in (3, 2, 3, 4, 7, 1):
             self.assertIsNone(W.gap_alarm({"done": 100, "in_scene": 100 + gap}, state))
 
-    def test_one_and_two_sightings_of_a_hole_are_silent(self):
+    def test_the_first_sighting_of_a_hole_speaks(self):
+        # measured 17/11/2026 (final run): the hole showed as gap -1 in TWO samples and the 3-in-a-row threshold
+        # missed it. A false alarm costs a log line; a silent hole costs a house with a piece missing.
         state = {"streak": 0, "spoken": False}
-        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
-        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
-
-    def test_the_third_sighting_in_a_row_speaks_once(self):
-        state = {"streak": 0, "spoken": False}
-        for _ in range(2):
-            W.gap_alarm({"done": 985, "in_scene": 984}, state)
         line = W.gap_alarm({"done": 985, "in_scene": 984}, state)
         self.assertIn("ALARME", line)
         self.assertIn("-1", line)
+
+    def test_it_speaks_once_per_episode_not_per_sample(self):
+        state = {"streak": 0, "spoken": False}
+        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
         for _ in range(5):
             self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
 
     def test_it_speaks_again_after_the_pair_agrees_and_breaks_again(self):
         state = {"streak": 0, "spoken": False}
-        for _ in range(3):
-            W.gap_alarm({"done": 985, "in_scene": 984}, state)
+        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
         self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 985}, state))
-        for _ in range(2):
-            self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
         self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
 
     def test_missing_counters_produce_no_alarm(self):
