@@ -36,22 +36,32 @@ class Alarm(unittest.TestCase):
         self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 985}, None))
 
     def test_alarm_on_the_measured_gap(self):
-        line = W.gap_alarm({"done": 985, "in_scene": 984}, None)
+        # the 16/11 case: the same -1 held for 20 samples. It speaks on the third one in a row, not the first.
+        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, None))
+        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, -1))
+        line = W.gap_alarm({"done": 985, "in_scene": 984}, -2)
         self.assertIn("ALARME", line)
         self.assertIn("-1", line)
 
-    def test_alarm_fires_once_while_the_gap_holds(self):
-        # first sighting: nothing was reported before, so it speaks
-        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, None))
-        # the same gap on the next samples: silent (one line, not one per sample)
-        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, -1))
-        self.assertIsNone(W.gap_alarm({"done": 986, "in_scene": 985}, -1))
+    def test_alarm_keeps_speaking_while_the_gap_holds(self):
+        # a hole that stays open is worth one line per sample after the third: it is not noise any more
+        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, -3))
 
-    def test_alarm_fires_again_when_the_gap_worsens(self):
-        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 982}, -1))
+    def test_gap_changing_sign_starts_over(self):
+        # +4 then -4 are not the same story: the streak resets, so a flapping pair never becomes an alarm
+        self.assertIsNone(W.gap_alarm({"done": 758, "in_scene": 762}, -2))
+        self.assertIsNone(W.gap_alarm({"done": 762, "in_scene": 758}, 1))
 
     def test_missing_counters_produce_no_alarm(self):
         self.assertIsNone(W.gap_alarm({"done": None, "in_scene": None}, None))
+
+    def test_one_sighting_is_a_race_not_an_alarm(self):
+        # measured 17/11/2026: a healthy run showed +3, +4, +7 once each (the piece exists before its `done:` line);
+        # the longest the same gap ever held was 2 samples. The backlog case of 16/11 held for 20.
+        # previous_gap is the counter the caller keeps: the streak with its sign (3 = third sample of +gap).
+        self.assertIsNone(W.gap_alarm({"done": 758, "in_scene": 762}, None))   # 1st sighting -> streak 1, silent
+        self.assertIsNone(W.gap_alarm({"done": 758, "in_scene": 762}, 1))      # 2nd -> streak 2, silent
+        self.assertIsNotNone(W.gap_alarm({"done": 758, "in_scene": 762}, 2))   # 3rd -> streak 3, speaks
 
 
 if __name__ == "__main__":

@@ -24,10 +24,15 @@ LOG = mcp_devbridge.LOG_PATH
 def gap_alarm(row, previous_gap):
     """The line to print when the counter and the scene disagree, or None.
 
-    Measured 16/11/2026: the sampler saw done=985 in_scene=984 for 20 samples in a row and the -1 was read
-    as noise - the orphan piece was only named by the reconciliation, at the end, as an acceptance formality.
-    The gap is worth one line the first time it appears and again only when it gets worse, so a healthy run
-    prints nothing and a broken one cannot be missed.
+    Measured 16/11/2026: the sampler saw done=985 in_scene=984 for 20 samples in a row and the -1 was read as
+    noise - the orphan piece was only named by the reconciliation, at the end, as an acceptance formality.
+
+    Measured 17/11/2026 on a healthy run: a single deviation is ordinary, because the piece exists in the world
+    a moment before its `done:` line is written (+3, +4, +7 once each, never the same value twice in a row). The
+    hole of 16/11 kept the SAME gap for 20 samples. So one sighting is a race and three in a row is a hole.
+
+    `previous_gap` is the streak the caller keeps: how many samples in a row told this story, with the sign of
+    the gap. It is None before the first sighting and flips sign (starting over at 1) when the gap changes sign.
     """
     done = row.get("done")
     in_scene = row.get("in_scene")
@@ -36,48 +41,17 @@ def gap_alarm(row, previous_gap):
     # the sign is the backlog's own (16/11/2026: done=985, in_scene=984 -> gap=-1): how much the SCENE is
     # short of what the mod claims, negative meaning a piece the counter counts and the world does not have
     gap = in_scene - done
-    if gap == 0 or previous_gap == gap or abs(gap) < abs(previous_gap or 0):
+    if gap == 0:
         return None
-    return "ALARME %s: o contador do mod diz %d peca(s) e a cena tem %d (gap %+d)" % (
-        row.get("t", "?"), done, in_scene, gap)
+    # previous_gap is the STREAK (how many samples in a row told this story), sign carrying the gap's sign
+    streak = 1
+    if previous_gap is not None and (previous_gap > 0) == (gap > 0):
+        streak = abs(previous_gap) + 1
+    if streak < 3:
+        return None
+    return "ALARME %s: o contador do mod diz %d peca(s) e a cena tem %d (gap %+d) ha %d amostra(s)" % (
+        row.get("t", "?"), done, in_scene, gap, streak)
 
-
-# (label, substring) - the same counters the run reports are written from
-COUNTERS = [
-    ("done", "done: "),
-    # NOT the bare word "skipped": the log prints "10 tree(s) skipped: too close to the buildings" and that
-    # counter jumped 0 -> 4 in this run without a single piece being skipped (measured 11/11/2026). The piece
-    # skips are counted by the giving-up line with the running total.
-    ("skipped", "pulada(s)"),
-    ("no_progress", "no progress towards"),
-    ("blocked_by_player", "blocked_by_player"),
-    ("no_free_spot", "sem lugar livre"),
-    ("queued", "vai para a fila"),
-    ("posts", "apoio de emergência"),
-    ("falls", "fell "),
-    ("deaths", "died during the build"),
-    ("giving_up", "desistindo de"),
-    ("chest_takes", "from the chest"),
-    ("too_heavy", "too_heavy"),
-    ("unsupported", "UNSUPPORTED"),
-    ("ended", "order ended"),
-]
-
-
-def log_lines(baseline):
-    try:
-        with open(LOG, encoding="utf-8", errors="replace") as handle:
-            return handle.read().splitlines()[baseline:]
-    except OSError:
-        return []
-
-
-def line_count():
-    try:
-        with open(LOG, encoding="utf-8", errors="replace") as handle:
-            return sum(1 for _ in handle)
-    except OSError:
-        return 0
 
 
 def sample(args, baseline):
@@ -136,7 +110,13 @@ def main():
             alarm = gap_alarm(row, last_gap)
             if alarm is not None:
                 print(alarm, flush=True)
-                last_gap = row["in_scene"] - row["done"]
+            # keep the streak for the next sample: how many in a row told this story, with the gap's sign
+            done_n, scene_n = row.get("done"), row.get("in_scene")
+            if isinstance(done_n, int) and isinstance(scene_n, int):
+                now = scene_n - done_n
+                same = last_gap is not None and now != 0 and (last_gap > 0) == (now > 0)
+                streak = (abs(last_gap) + 1) if same else 1
+                last_gap = (streak if now > 0 else -streak) if now != 0 else None
             if sink is not None:
                 sink.write(text + "\n")
                 sink.flush()
