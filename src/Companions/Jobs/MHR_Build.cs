@@ -692,6 +692,10 @@ internal static class MHR_Build
 		/// (the player's test of the 4x4 looped because it compared the BAG TOTAL with the SHORTFALL: the bag already had
 		/// the 2 it asked for and the door still needed 4).</summary>
 		internal List<PlannedStep> Plan;
+		/// <summary>16/11/2026: the size of the house when the order started (<see cref="State.PlanTotal"/>) - the plan
+		/// itself already carries what the retry pass appended, so a resumed order that read it would ask for more pieces
+		/// than the house has.</summary>
+		internal int PlanTotal;
 		/// <summary>
 		/// 15/11/2026 (the measured run of the <c>CommHomeBasicBP</c>, 985 pieces: at piece 854 the companion fell 6,9 m and
 		/// died, and the resumed order walked the house <b>from piece 1</b> - 100+ <c>já está de pé</c> lines re-visiting
@@ -2548,6 +2552,10 @@ internal static class MHR_Build
 			AnchorRot = rot,
 			AnchorKnown = true,
 			Plan = plan,
+			// 16/11/2026: a resumed blueprint reuses the FIRST part's plan, which already carries what the retry pass
+			// appended - so on a resume this count is not the size of the house. RestoreProgress puts the first part's
+			// number back from the pending; this one is right for the part that starts the order.
+			PlanTotal = plan.Count,
 			Retry = new List<PlannedStep>(),
 			Index = start,
 			Prefab = plan[start].Prefab,
@@ -3180,6 +3188,10 @@ internal static class MHR_Build
 			// 15/11/2026: the progress of the walk travels with the plan, or the respawn re-walks the whole house
 			Placed = new HashSet<int>(state.PlacedIndices),
 			Skipped = new HashSet<int>(state.SkippedIndices),
+			// 16/11/2026: the plan GROWS with the retry pass, so the resumed order cannot read the house's size from it
+			// (measured: 1002 entries over a 985-piece house, and the order closed as `17 peça(s) não subiram` with every
+			// piece standing). The first part's number travels with the plan.
+			PlanTotal = state.PlanTotal,
 			AfterDeath = true,
 			CompanionId = cs != null ? cs.MHR_ResolveCompanionId() : null,
 			Start = Time.time,
@@ -8506,6 +8518,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			// plan here too (without it the resumed order re-walked every piece already standing)
 			Placed = new HashSet<int>(state.PlacedIndices),
 			Skipped = new HashSet<int>(state.SkippedIndices),
+			PlanTotal = state.PlanTotal,
 			Anchor = state.AnchorKnown ? state.Anchor : state.Hint,
 			AnchorRot = state.AnchorRot,
 			FollowWas = follow,
@@ -8551,6 +8564,9 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		int planCount = fresh.Plan != null ? fresh.Plan.Count : 0;
 		fresh.PlacedTotal = BuildProgress.Restore(fresh.PlacedIndices, fresh.SkippedIndices, pending.Placed, pending.Skipped,
 			planCount);
+		// 16/11/2026: the same reason the progress travels - a fresh state would read the house's size off a plan that the
+		// retry pass already grew, and close as `incomplete` with every piece standing
+		fresh.PlanTotal = BuildPlanTotal.Of(pending.PlanTotal, planCount);
 	}
 
 	/// <summary>E6b: undoes the Follow that <see cref="HandOver"/> turned off. Only when it is still off (you may have
