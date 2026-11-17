@@ -426,7 +426,7 @@ pura `AI/BuildPlanTotal.cs` (`Of` e `Complete`) decide, e o `Finish` passa a ler
 da lista. Os dois lados da regra do jogador continuam valendo, e o harness fixa os dois: **985 de 985 fecha como
 completa** e **984 de 985 continua incompleta**.
 
-### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **aberto, medido 16/11/2026**
+### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **parcial: (b) fechado, (a)/(c)/(d) abertos**
 
 A run seguinte (DLL 18:34, `run-final-1120`) expôs que o 11f **não se confirmou em jogo**. Duas medições, ambas
 independentes do log:
@@ -458,6 +458,14 @@ fim, como formalidade de aceite. **Regra nova:** o reconcile roda **durante** o 
 **Aceite deste item:** (a) o resume não herda `PlacedIndices` sem conferir a cena; (b) `PlanTotal` sobrevive à
 passagem que reconstrói o estado no resume; (c) o reconcile roda dentro do ciclo, não depois; (d) a run fecha com o
 número igual ao da reconciliação.
+
+**Estado em 16/11/2026 (fim do dia):** **(b) fechado e medido.** O `PlanTotal` viaja no `Pending` e volta no
+`RestoreProgress` (morte e coleta). Run de confirmação, mesmo blueprint, 2 mortes e 2 retomadas: 985 peças na cena,
+**0 puladas**, ordem fechada com `hc_ai_blueprint_done` (não mais `incomplete`), reconcile **exit 0** — 983 casadas,
+2 faltantes explicadas por extra do mesmo prefab, 0 sem explicação.
+**(a) continua aberto:** a peça órfã da laje `#692` não foi investigada neste ciclo — o run de confirmação não a
+reproduziu, e "não reproduziu" não é "corrigido". Um resume ainda herda `PlacedIndices` sem conferir a cena.
+**(c) e (d) continuam abertos:** o reconcile só rodou no fim, como aceite, não durante o run.
 
 ### 12. ~~O run **grátis** da `CommHomeBasicBP`~~ — **medido 12/11/2026**
 O ciclo `fix/plano-remap` fechou os oito defeitos de código do `MHR_Build` (remapeamento do plano, "já está de pé"

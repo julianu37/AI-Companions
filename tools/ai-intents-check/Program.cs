@@ -2459,7 +2459,9 @@ internal static class Program
 	/// walked past keep their turn in the site's queue and come back when that place is free.
 	///
 	/// <para><c>Pick</c> is the choice inside the window (the first candidate far from every claim, and how many came
-	/// before it); <c>Far</c> is the one distance rule (XZ, exactly the distance is free, a candidate that is not a number
+	/// before it); <c>PickNear</c> is the rule of 11/11/2026 ("build everything within reach before going elsewhere"):
+	/// among the far ones the nearest to the body wins while it is inside the reach, and it falls back to <c>Pick</c> and
+	/// then to 0; <c>Far</c> is the one distance rule (XZ, exactly the distance is free, a candidate that is not a number
 	/// is never far, a claim that is not a number is ignored); <c>SameRun</c> is the window's edge (the parser's own keys:
 	/// storey key and height with 0,01 of slack, class exactly).</para>
 	/// </summary>
@@ -2489,6 +2491,29 @@ internal static class Program
 			new[] { SpreadPoint(0f) }, float.NaN, 0, 0);
 		SpreadPick("sem claims: a 1a entra", new[] { SpreadPoint(0f), SpreadPoint(10f) }, null, d, 0, 0);
 
+		// --- PickNear: among the far ones, the nearest to the body inside the reach; then Pick; then 0
+		SpreadPickNear("sem candidatas: nada a escolher", null, null, d, SpreadPoint(0f), 5f, 0, 0);
+		SpreadPickNear("a mais perto de mim ganha, nao a primeira da janela",
+			new[] { SpreadPoint(10f), SpreadPoint(1f) }, null, d, SpreadPoint(0f), 5f, 1, 1);
+		SpreadPickNear("empate: a de menor indice (a ordem do plano)",
+			new[] { SpreadPoint(2f), SpreadPoint(-2f) }, null, d, SpreadPoint(0f), 5f, 0, 0);
+		SpreadPickNear("a mais perto esta fora do alcance: a proxima dentro dele",
+			new[] { SpreadPoint(9f), SpreadPoint(4f) }, null, d, SpreadPoint(0f), 5f, 1, 1);
+		SpreadPickNear("nada dentro do alcance: cai no Pick (a 1a longe), 1 adiada",
+			new[] { SpreadPoint(0f), SpreadPoint(20f) }, new[] { SpreadPoint(0f) }, d, SpreadPoint(0f), 5f, 1, 1);
+		SpreadPickNear("nada longe: cai no 0 (hoje)", new[] { SpreadPoint(0f), SpreadPoint(1f) },
+			new[] { SpreadPoint(0f) }, d, SpreadPoint(0f), 5f, 0, 0);
+		SpreadPickNear("a mais perto perto de um claim e descartada; a longe ganha",
+			new[] { SpreadPoint(1f), SpreadPoint(8f) }, new[] { SpreadPoint(1f) }, d, SpreadPoint(0f), 20f, 1, 1);
+		SpreadPickNear("me NaN: camada 1 desligada, vale o Pick", new[] { SpreadPoint(10f), SpreadPoint(1f) }, null, d,
+			new UnityEngine.Vector3(float.NaN, 40f, 0f), 5f, 0, 0);
+		SpreadPickNear("raio 0: camada 1 desligada, vale o Pick",
+			new[] { SpreadPoint(10f), SpreadPoint(1f) }, null, d, SpreadPoint(0f), 0f, 0, 0);
+		SpreadPickNear("minDistance NaN: hoje, nada adiado (igual ao Pick)",
+			new[] { SpreadPoint(10f), SpreadPoint(1f) }, null, float.NaN, SpreadPoint(0f), 5f, 0, 0);
+		SpreadPickNear("candidata NaN nunca e escolhida",
+			new[] { new UnityEngine.Vector3(float.NaN, 40f, 0f), SpreadPoint(2f) }, null, d, SpreadPoint(0f), 5f, 1, 1);
+
 		// --- Far: the one distance rule (XZ, the edge is free, a broken pose never freezes the site)
 		SpreadFar("mesmo XZ 10 m acima: perto", new UnityEngine.Vector3(0f, 50f, 0f), new[] { SpreadPoint(0f) }, d, false);
 		SpreadFar("exatamente 3 m: longe", SpreadPoint(3f), new[] { SpreadPoint(0f) }, d, true);
@@ -2514,6 +2539,20 @@ internal static class Program
 		List<UnityEngine.Vector3> known = claims == null ? null : new List<UnityEngine.Vector3>(claims);
 		int passed;
 		int at = BuildSpread.Pick(pool, known, distance, out passed);
+		Check(name + " -> #" + (expectedAt + 1) + ", " + expectedPassed + " adiada(s)",
+			at == expectedAt && passed == expectedPassed,
+			"obtido #" + (at + 1) + ", " + passed + " adiada(s)");
+	}
+
+	/// <summary>Section (z): one <c>PickNear</c> case - the window, the claims, the body, the reach and the expected index
+	/// (plus how many it left behind).</summary>
+	private static void SpreadPickNear(string name, UnityEngine.Vector3[] window, UnityEngine.Vector3[] claims,
+		float distance, UnityEngine.Vector3 me, float radius, int expectedAt, int expectedPassed)
+	{
+		List<UnityEngine.Vector3> pool = window == null ? null : new List<UnityEngine.Vector3>(window);
+		List<UnityEngine.Vector3> known = claims == null ? null : new List<UnityEngine.Vector3>(claims);
+		int passed;
+		int at = BuildSpread.PickNear(pool, known, distance, me, radius, out passed);
 		Check(name + " -> #" + (expectedAt + 1) + ", " + expectedPassed + " adiada(s)",
 			at == expectedAt && passed == expectedPassed,
 			"obtido #" + (at + 1) + ", " + passed + " adiada(s)");

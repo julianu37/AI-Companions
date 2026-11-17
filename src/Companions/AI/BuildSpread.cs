@@ -128,13 +128,20 @@ internal static class BuildSpread
 	/// spread. <paramref name="passedCount"/> has the same contract as <see cref="Pick"/>: how many candidates came before the
 	/// chosen one, and 0 whenever 0 is answered. Fail-open by design: a <paramref name="me"/> that is not a number or a
 	/// <paramref name="nearRadius"/> of zero or less switch layer 1 off (layers 2 and 3 answer), and a candidate that is not a
-	/// number is never chosen.</para>
+	/// number is never chosen. A <paramref name="minDistance"/> that is not a number or is zero or less answers 0 with
+	/// nothing passed, exactly as <see cref="Pick"/> does - the two must not disagree on a broken caller value.</para>
 	/// </summary>
 	internal static int PickNear(IList<Vector3> window, IList<Vector3> claims, float minDistance, Vector3 me, float nearRadius,
 		out int passedCount)
 	{
 		passedCount = 0;
 		if (window == null || window.Count == 0)
+		{
+			return 0;
+		}
+		// Same contract as Pick: a spread distance that cannot be reasoned about answers today's piece, it does not let
+		// layer 1 pick a nearest one (Far would read the broken limit as "everything is far").
+		if (!Finite(minDistance) || minDistance <= 0f)
 		{
 			return 0;
 		}
@@ -183,11 +190,11 @@ internal static class BuildSpread
 		{
 			return false;
 		}
-		return Near(levelA, levelB) && Near(yA, yB);
+		return SameKey(levelA, levelB) && SameKey(yA, yB);
 	}
 
 	/// <summary>Two keys of a run are the same one: both real numbers and at most <see cref="KeySlack"/> apart.</summary>
-	private static bool Near(float a, float b)
+	private static bool SameKey(float a, float b)
 	{
 		if (!Finite(a) || !Finite(b))
 		{
