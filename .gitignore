@@ -44,3 +44,10 @@ tools/mcp-devbridge/scratch/
 # despejos da cena (build.pieces) de um run: a entrada do reconcile_scene.py, nao uma fonte
 tools/mcp-devbridge/scene-*.json
 tools/plan-probe/plan-dump.txt
+
+# estado local do harness (settings.local.json, memoria de sessao) - o harness versionado e .claude/agents|skills|settings.json
+.claude/settings.local.json
+.claude/worktrees/
+
+# clones de referencia de terceiros (nao entram no repo)
+.refs/
