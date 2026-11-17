@@ -426,7 +426,7 @@ pura `AI/BuildPlanTotal.cs` (`Of` e `Complete`) decide, e o `Finish` passa a ler
 da lista. Os dois lados da regra do jogador continuam valendo, e o harness fixa os dois: **985 de 985 fecha como
 completa** e **984 de 985 continua incompleta**.
 
-### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **(b) fechado, (a) parcial (reproduzido, causa nomeada), (c) parcial, (d) aberto**
+### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **(a), (b) e (c) fechados e medidos; (d) aberto**
 
 A run seguinte (DLL 18:34, `run-final-1120`) expôs que o 11f **não se confirmou em jogo**. Duas medições, ambas
 independentes do log:
@@ -510,10 +510,20 @@ O que este ciclo entrega, medido e honesto:
 - o `Complete()` está certo em comparação (não fecha com peça faltando **segundo o contador**); o problema é que o
   **contador pode ficar 1 acima da cena**.
 
-**Para fechar (a) de verdade** falta uma coisa só, e ela é mudança de comportamento que merece ciclo próprio: **a
-passada de retry também tem de reconferir a cena** antes de pular uma peça como "já está de pé". E o limiar do alarme
-precisa descer para **1 amostra no sentido perigoso** (o custo de um falso alarme é uma linha de log; o custo de um
-buraco silencioso é uma casa furada).
+**Fechado em 17/11/2026 (o segundo run do mesmo dia): as duas coisas foram feitas e medidas.**
+
+1. **A passada de retry confere a cena.** O atalho que pulava por pertencer ao `PlacedIndices` agora pergunta
+   `SceneHasStep` (`BuildExecutor.VerifyAt`, pose **e** orientação — a mesma pergunta do `AlreadyStanding`) e, quando a
+   cena não confirma, devolve o índice ao walk e loga `a peça N/M está na lista mas não está de pé - voltando a ela`.
+   Custo aceito: uma busca por peça pulada; o retry pass medido percorre **13 peças**, nunca por frame.
+2. **O alarme fala na primeira amostra** do sentido perigoso, uma vez por episódio (o limiar de 3 era overfit do caso
+   de 16/11; o buraco de 17/11 apareceu em 2).
+
+**Medido no run de validação (morte forçada na peça ~210, 89 amostras):**
+- `placed` **igual à cena em todas as amostras** (849=849, 867=867, 898=898, 935=935, 962=962, e **985** no fim);
+- **0 gaps negativos** e portanto **0 alarmes** — o buraco não apareceu;
+- cena **985/985**, `hc_ai_blueprint_done`, reconcile **exit 0** (983 casadas, 2 explicadas por extra do mesmo prefab,
+  **0 sem explicação**), `test_reconcile_scene.py` **OK**.
 
 **(d) continua aberto, e agora com o motivo certo:** *a ordem cancelada pelo jogador ("para") **não escreve número de
 fechamento nenhum*** — `MHR_Build.Cancel` remove o estado sem passar pelo `Finish` (verificado: o run curto tem

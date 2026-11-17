@@ -21,7 +21,7 @@ IA** (LLM/voz/fala) + **localização** por cima.
 | alarme de contador do run | `python tools/test_run_watch_alarm.py` → **9 PASS / 0 FAIL** (com replay dos runs gravados) |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/resume-orphan-piece` (parcial no item 11g — ver o item: a retomada confere a cena, mas a passada de retry ainda não) |
+| branch de trabalho | `fix/resume-orphan-piece` (fecha (a) e (c) do item 11g; a linha de release é a `main`) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 
