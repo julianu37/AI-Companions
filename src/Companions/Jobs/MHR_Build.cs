@@ -8657,7 +8657,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		foreach (int index in missing)
 		{
 			fresh.PlacedIndices.Remove(index);
-			if (fresh.Retry != null && index >= 0 && index < fresh.Plan.Count && fresh.Plan[index] != null)
+			// no duplicate: on the death path `fresh.Retry` IS `pending.Retry`, which may already hold this very step
+			// (the same guard QueueRetry uses) - appending it twice walks the piece twice
+			if (fresh.Retry != null && index >= 0 && index < fresh.Plan.Count && fresh.Plan[index] != null
+				&& !fresh.Retry.Contains(fresh.Plan[index]))
 			{
 				fresh.Retry.Add(fresh.Plan[index]);
 			}
