@@ -2,6 +2,32 @@
 
 All the changes to this project, derived from ProfMags' Offline Companions. The versions before 1.4.0 are the original mod (see the original mod's history, from ProfMags, for those versions) plus the first batch of compatibility fixes for the Valheim 1.0 API that made the mod load and run. **The entries below 1.5.4 are the upstream history and stay as they are (in English) — our sections (from 1.6.0 on) are ours.**
 
+## 1.9.8 - 16/11/2026
+
+**A resumed order reads the size of the house from the order, not from the plan it grew.** 1.9.7 fixed the false
+`incomplete` for an order that never stopped; this one fixes it for an order that **died and resumed**, which was
+what the 1.9.7 note left open. The retry pass appends the pieces that did not stand to the same plan, so a 985-piece
+house reached **1002** entries; the single point that recorded the house's size (`State.PlanTotal`) was only reached by
+the template path, never by the blueprint one, so the completion test fell back to the grown list. Measured on the
+`CommHomeBasicBP` (985 pieces): before, **985 pieces standing in the scene and the order closing as
+`hc_ai_blueprint_incomplete (17 peça(s) não subiram)`**; after, the same scene, **0 skipped**, the order closing as
+`hc_ai_blueprint_done` and `reconcile_scene.py` **exit 0** (983 matched, 2 explained by an extra of the same prefab, 0
+unexplained). The size now travels with the plan in `Pending` — the same way the walk's progress already did — and
+comes back in `RestoreProgress` on both resumes (death and the gather handover).
+
+**The word net behind the spread is pinned.** `BuildSpread.PickNear` (the player's rule *"build everything within
+reach before going elsewhere"*) had no assertion at all: harness section (z) only covered `Far`/`Pick`/`SameRun`, while
+`PickNear` is what actually decides the worker's piece. Eleven cases now cover it (nearest wins, ties keep the plan's
+order, out of reach, nothing in reach falls back to `Pick`, a broken body/radius switches only layer 1 off, a `NaN`
+candidate is never chosen), and both siblings now answer the same for a broken `minDistance` — `Pick` answered 0 and
+`PickNear` picked a nearest one. Red/green measured: **32 PASS / 1 FAIL** without the fix, **33 PASS / 0 FAIL** with it.
+Harness **1236 assertions**.
+
+> **Still open (backlog item 11g):** (a) a resume still inherits the placed set without checking the scene — the orphan
+> slab `#692` of the 18:34 run was not reproduced here, and "not reproduced" is not "fixed"; (c) the reconciliation
+> still runs at the end as an acceptance step instead of during the run; (d) the closing number is only proven equal to
+> the scene on a run that finished, not on one that ends short.
+
 ## 1.9.7 - 16/11/2026
 
 **A house with every piece standing no longer closes as unfinished.** The single worker's retry pass **appends** to the
