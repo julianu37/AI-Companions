@@ -235,7 +235,7 @@ character does not answer the controls (and the push-to-talk key does not record
 | `Translations/`, `Speech/` | The translations of the five languages (interface and speech) — the build copies them into the plugin; **English is native** and needs no file |
 | `package/` | Package files (icon, README/CHANGELOG, guide and configuration) |
 | `docs/` | Roadmap, vision, phase plan, reverse engineering and technical notes |
-| `.claude/` | The **agent harness** used to develop the project (Claude Code: skills, subagents, settings) |
+| `.claude/` | The **development harness**: domain skills, project subagents and the project permissions (Claude Code); the DevBridge MCP server is in [`.mcp.json`](.mcp.json) |
 
 ## Documentation
 
@@ -246,7 +246,10 @@ character does not answer the controls (and the push-to-talk key does not record
 - [`docs/vision.md`](docs/vision.md) — the goal of the project.
 - [`docs/re/`](docs/re/) — reverse engineering of Valheim 1.0 and STT/voice notes.
 - [`docs/references.md`](docs/references.md) — third-party sources and licenses.
-- [`AGENTS.md`](AGENTS.md) — how the agent team works in this repository.
+- [`AGENTS.md`](AGENTS.md) — the operational reference for whoever develops this: current version, the measured test
+  counts, the commands, the pitfalls and the open work (PT-BR).
+- [`CLAUDE.md`](CLAUDE.md) — the same ground rules for an AI agent working in the repo: architecture, the release
+  order, and the **Claude Code harness** (`.claude/skills/`, `.claude/agents/`, `.mcp.json`).
 
 ## Build
 

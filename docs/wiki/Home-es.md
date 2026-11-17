@@ -108,15 +108,23 @@ upstream y sigue funcionando igual — la IA es solo una **nueva entrada** para 
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release publicada más reciente es la **1.9.6** (02/11/2026), con **un** paquete:
+La release publicada más reciente es la **1.9.8** (17/11/2026), con **un** paquete:
 
 | Archivo | Tamaño | Qué viene |
 |---|---|---|
-| `AI_Companions-1.9.6.zip` | ~314 MB | El mod, las traducciones **y** los modelos de voz (STT + TTS) ya listos |
+| `AI_Companions-1.9.8.zip` | ~321 MB | El mod, las traducciones **y** los modelos de voz (STT + TTS) ya listos |
 
 > **Un solo paquete.** Desde la **1.9.4** la release viene **con** los modelos de voz, ya **dentro** de
 > `BepInEx\plugins\AI-Companions\` (`whisper\` y `tts\`) — no hay nada que descargar aparte. El paquete
 > **sin modelos** quedó **descontinuado** (el último fue el de la 1.9.1).
+
+> **La 1.9.8 — la obra retomada dice la verdad.** Si el compañero **muere en medio de una casa** y vuelve, la orden
+> lee el tamaño de la casa de la propia orden, no de la lista de reintentos — así que una casa terminada ya no acaba
+> con *"17 pieza(s) no subieron"* con todas las piezas en pie. Medido en la `CommHomeBasicBP` de 985 piezas: **985 en
+> la escena, 0 omitidas**, la orden cerrando como **terminada**, y la escena conciliada contra el blueprint con **0
+> piezas sin explicación**. El contador de la 1.9.7 cubre la orden que nunca se detuvo; este cubre la que **murió y
+> se reanudó**. La regla que decide *qué pieza* toma cada compañero (*"construir todo lo que está al alcance antes de
+> ir a otro lugar"*) también ganó su propia prueba — 11 casos, harness con **1236 aserciones**.
 
 > **La 1.9.6 — la actualización de la construcción.** El compañero ahora **construye lo que le pides**: una
 > bancada, un cofre, una cama, un refugio, una tienda, una cabaña 2x2 o la casa entera (4x4, 6x6 y 8x8), en los

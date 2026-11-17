@@ -96,7 +96,7 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **[Configurazione](Configuration-it)** | Il `.cfg`, la sezione `[AI]` e i pannelli `F8` e `I` |
 | **[Problemi comuni](Troubleshooting-it)** | Sintomo → causa → soluzione |
 | **[Come funziona](How-it-works-it)** | Architettura e il percorso di un ordine |
-| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.6 |
+| **[Cronologia delle versioni](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | Il changelog completo, dalla 1.6.0 alla 1.9.8 |
 | **[Crediti e licenza](Credits-and-license-it)** | Upstream, terzi e licenze |
 
 ## Link rapidi
@@ -108,15 +108,24 @@ continua a funzionare uguale — l'IA è solo un **nuovo ingresso** per le stess
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release pubblicata più recente è la **1.9.6** (02/11/2026), con **un** pacchetto:
+La release pubblicata più recente è la **1.9.8** (17/11/2026), con **un** pacchetto:
 
 | File | Dimensione | Cosa contiene |
 |---|---|---|
-| `AI_Companions-1.9.6.zip` | ~314 MB | La mod, le traduzioni **e** i modelli di voce (STT + TTS) già pronti |
+| `AI_Companions-1.9.8.zip` | ~321 MB | La mod, le traduzioni **e** i modelli di voce (STT + TTS) già pronti |
 
 > **Un pacchetto solo.** Dalla **1.9.4** la release arriva **con** i modelli di voce, già **dentro**
 > `BepInEx\plugins\AI-Companions\` (`whisper\` e `tts\`) — non c'è niente da scaricare a parte. Il pacchetto
 > **senza modelli** è stato **dismesso** (l'ultimo è stato quello della 1.9.1).
+
+> **La 1.9.8 — il cantiere ripreso dice la verità.** Se il compagno **muore nel mezzo di una casa** e torna, l'ordine
+> legge la dimensione della casa dall'ordine stesso, non dalla lista dei nuovi tentativi — quindi una casa finita non
+> termina più con *"17 pezzo/i non sono saliti"* con tutti i pezzi in piedi. Misurato sulla `CommHomeBasicBP` da 985
+> pezzi: **985 nella scena, 0 saltate**, l'ordine che chiude come **terminato**, e la scena riconciliata con il
+> blueprint con **0 pezzi senza spiegazione**. Il contatore della 1.9.7 copre l'ordine che non si è mai fermato;
+> questo copre quello che **è morto e ha ripreso**. La regola che decide *quale pezzo* prende ogni compagno
+> (*"costruire tutto ciò che è a portata prima di andare altrove"*) ha guadagnato anche la sua prova — 11 casi,
+> harness con **1236 asserzioni**.
 
 > **La 1.9.6 — l'aggiornamento della costruzione.** Il compagno ora **costruisce quello che chiedi**: un banco da
 > lavoro, una cassa, un letto, un riparo, una tenda, una capanna 2x2 o la casa intera (4x4, 6x6 e 8x8), nelle

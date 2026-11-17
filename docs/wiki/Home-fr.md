@@ -108,15 +108,24 @@ vient de l'upstream et continue à fonctionner pareil — l'IA n'est qu'une **no
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-La release publiée la plus récente est la **1.9.6** (02/11/2026), avec **un** paquet :
+La release publiée la plus récente est la **1.9.8** (17/11/2026), avec **un** paquet :
 
 | Fichier | Taille | Ce qu'il contient |
 |---|---|---|
-| `AI_Companions-1.9.6.zip` | ~314 Mo | Le mod, les traductions **et** les modèles de voix (STT + TTS) déjà prêts |
+| `AI_Companions-1.9.8.zip` | ~321 Mo | Le mod, les traductions **et** les modèles de voix (STT + TTS) déjà prêts |
 
 > **Un seul paquet.** Depuis la **1.9.4**, la release vient **avec** les modèles de voix, déjà **dans**
 > `BepInEx\plugins\AI-Companions\` (`whisper\` et `tts\`) — il n'y a rien à télécharger à part. Le paquet
 > **sans modèles** a été **abandonné** (le dernier était celui de la 1.9.1).
+
+> **La 1.9.8 — le chantier repris dit la vérité.** Si le compagnon **meurt au milieu d'une maison** et revient, l'ordre
+> lit la taille de la maison depuis l'ordre lui-même, pas depuis la liste des nouvelles tentatives — une maison
+> terminée ne finit donc plus avec *"17 pièce(s) ne sont pas montées"* alors que tout est debout. Mesuré sur la
+> `CommHomeBasicBP` de 985 pièces : **985 dans la scène, 0 ignorée**, l'ordre se terminant comme **terminé**, et la
+> scène réconciliée avec le blueprint avec **0 pièce inexpliquée**. Le compteur de la 1.9.7 couvre l'ordre qui ne
+> s'est jamais arrêté ; celui-ci couvre celui qui **est mort et a repris**. La règle qui décide *quelle pièce* chaque
+> compagnon prend (*"construire tout ce qui est à portée avant d'aller ailleurs"*) a aussi gagné sa propre preuve —
+> 11 cas, harness avec **1236 assertions**.
 
 > **La 1.9.6 — la mise à jour de la construction.** Le compagnon **construit maintenant ce que tu demandes** : un
 > établi, un coffre, un lit, un abri, une tente, une cabane 2x2 ou la maison entière (4x4, 6x6 et 8x8), dans les

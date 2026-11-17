@@ -96,7 +96,7 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **[Configuration](Configuration)** | The `.cfg`, the `[AI]` section and the `F8` and `I` panels |
 | **[Troubleshooting](Troubleshooting)** | Symptom → cause → solution |
 | **[How it works](How-it-works)** | Architecture and the path of an order |
-| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.6 |
+| **[Changelog](https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md)** | The full changelog, from 1.6.0 to 1.9.8 |
 | **[Credits and license](Credits-and-license)** | Upstream, third parties and licenses |
 
 ## Quick links
@@ -108,15 +108,24 @@ and keeps working the same — the AI is only a **new entry point** for the same
 | **Changelog** | https://github.com/julianu37/AI-Companions/blob/main/package/CHANGELOG.md |
 | **Upstream (MIT)** | https://github.com/MaddhattrRocks/Offline-Companions-Reborn |
 
-The most recent published release is **1.9.6** (02/11/2026), with **one** package:
+The most recent published release is **1.9.8** (17/11/2026), with **one** package:
 
 | File | Size | What comes in it |
 |---|---|---|
-| `AI_Companions-1.9.6.zip` | ~314 MB | The mod, the translations **and** the voice models (STT + TTS) ready to use |
+| `AI_Companions-1.9.8.zip` | ~321 MB | The mod, the translations **and** the voice models (STT + TTS) ready to use |
 
 > **One package only.** Since **1.9.4** the release ships **with** the voice models, already **inside**
 > `BepInEx\plugins\AI-Companions\` (`whisper\` and `tts\`) — there is nothing to download separately. The
 > *no-models* package was **discontinued** (the last one was 1.9.1).
+
+> **1.9.8 — the resumed build tells the truth.** If the companion **dies in the middle of a house** and comes back,
+> the order reads the size of the house from the order itself, not from the list of retries — so a finished house no
+> longer ends with *"17 pieces did not go up"* while every piece is standing. Measured on the 985-piece
+> `CommHomeBasicBP`: **985 in the scene, 0 skipped**, the order closing as **done**, and the scene reconciled against
+> the blueprint with **0 unexplained pieces**. The 1.9.7 counter fix covers an order that never stopped; this one
+> covers the order that **died and resumed**. The rule that decides *which piece* each companion takes
+> (*"build everything within reach before going elsewhere"*) also gained its own proof — 11 cases, harness **1236
+> assertions**.
 
 > **1.9.6 — the building update.** Your companion now **builds what you ask**: a workbench, a chest, a bed, a
 > shelter, a tent, a 2x2 hut or a whole house (4x4, 6x6 and 8x8), all in the five languages. It finds the spot with

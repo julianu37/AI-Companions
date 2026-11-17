@@ -2127,6 +2127,49 @@ que é onde o modelo erra. Harness: 5 × 5 × 2 = 50 requisições, ~3,2 s cada 
    perto → o papo (`Chat`).
 7. **Multiplayer** (A3/A4), se houver: "guarda isso no baú" no baú privado de outro jogador → recusa.
 
+## 1.9.8 — a obra retomada não inventa peça faltando e a rede do spread tem prova (✅ 17/11/2026, na `main`)
+
+Fecha o **(b)** do item **11g** do `docs/backlog-construcao.md`, que a 1.9.7 deixou explicitamente aberto ("not
+confirmed in play: `planned` read 999 on a run that died and resumed").
+
+**O defeito, medido duas vezes.** A passada de retry **anexa** ao mesmo plano as peças que não subiram, então a lista
+de uma casa de 985 peças chegou a **1002** entradas. O único ponto que gravava o tamanho da casa (`State.PlanTotal`)
+só era alcançado pelo caminho de **template** (`FindPlan`); o caminho de **blueprint** nunca o definia, e o `Finish`
+caía no tamanho da lista crescida. Resultado: cena com **985/985** e a ordem fechando como
+`hc_ai_blueprint_incomplete (17 peça(s) não subiram)` — as 17 eram peças **de pé**, relidas como pendentes.
+
+**O fix.** O número viaja no `Pending` — do mesmo jeito que o progresso da caminhada já viajava pelo mesmo motivo — e
+volta no `RestoreProgress`, tanto na retomada por **morte** quanto na handover por **coleta**. `State.PlanTotal` passou
+a ser preenchido na criação do estado do blueprint (`MHR_Build.cs:2552`), não só no `FindPlan`.
+
+**O que o run de confirmação mediu** (`CommHomeBasicBP`, 985 peças, 2 mortes e 2 retomadas, DLL 1.9.8):
+
+| aceite | número |
+|---|---|
+| peças na cena | **985** |
+| peças puladas | **0** |
+| fechamento da ordem | `hc_ai_blueprint_done` (era `incomplete (17 peça(s) não subiram)`) |
+| reconciliação cena × blueprint | **exit 0** — 983 casadas, 2 faltantes explicadas por extra do mesmo prefab, **0 sem explicação** |
+| build | 0 erros / 0 avisos |
+| harness | **1236 PASS / 0 FAIL** |
+
+**O outro achado do ciclo (revisão do `BuildSpread`).** `PickNear` — a regra do *"construir tudo o que está ao
+alcance antes de ir para outro lugar"*, que é a que **decide a peça do worker** — não tinha **nenhuma** asserção: a
+seção (z) só cobria `Far`/`Pick`/`SameRun`. Ganhou **11 casos** (mais perto ganha, empate pelo menor índice, fora do
+alcance, nada ao alcance cai no `Pick`, `me`/raio inválidos desligam só a camada 1, `NaN` nunca escolhida). De quebra,
+os dois irmãos passaram a responder **igual** para um `minDistance` quebrado (`Pick` respondia 0 e `PickNear` pegava a
+mais perto), e o `Near` privado virou `SameKey` para não confundir com `BuildFloorStart.Near` (const de 6 m). Vermelho
+→ verde medido: **32 PASS / 1 FAIL** sem o fix, **33 PASS / 0 FAIL** com ele.
+
+**Ainda aberto (item 11g):** (a) a retomada ainda herda `PlacedIndices` sem conferir a cena — a laje órfã `#692` do
+run de 18:34 **não foi reproduzida**, e "não reproduziu" não é "corrigido"; (c) o reconcile ainda roda no fim como
+aceite, não durante o run; (d) o número de fechamento só está provado igual à cena num run que termina inteiro.
+
+**Instrumentação que falhou no ciclo:** eu dei a primeira ordem com `y=39.9` quando o chão era **38.8** (o valor está
+no `docs/re/ciclo-de-run-devbridge.md`, passo 8) e reordenei uma segunda vez **sem limpar** o sítio de 816 peças, o que
+fez a ordem nova colocar peças em cima das antigas (chegou a 1000). As duas são falhas de **procedimento**, não de
+código: o ciclo manda limpar antes de toda ordem, e o `y` da âncora já estava documentado.
+
 ### 1.9.4 — a barba da companheira feminina: a 1.9.3 trocou um bug por outro (✅ publicada em 31/10/2026, tag `v1.9.4`, só no GitHub; build 0 erros, 0 avisos; branch `fix/barba-sentinela` + `fix/altos-194`; **o teste em jogo é do jogador**)
 
 **O relato (31/10/2026, print do painel do starter):** gênero **Feminino** selecionado e a prévia 3D com a **barba do
