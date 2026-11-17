@@ -426,7 +426,7 @@ pura `AI/BuildPlanTotal.cs` (`Of` e `Complete`) decide, e o `Finish` passa a ler
 da lista. Os dois lados da regra do jogador continuam valendo, e o harness fixa os dois: **985 de 985 fecha como
 completa** e **984 de 985 continua incompleta**.
 
-### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **(a) e (b) fechados, (c) parcial, (d) aberto**
+### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **(b) fechado, (a) parcial (reproduzido, causa nomeada), (c) parcial, (d) aberto**
 
 A run seguinte (DLL 18:34, `run-final-1120`) expôs que o 11f **não se confirmou em jogo**. Duas medições, ambas
 independentes do log:
@@ -489,6 +489,31 @@ passou de **2 amostras** (medido: +3, +4, +7 uma vez cada — a peça existe ant
 **O que ele NÃO faz:** não é o reconciliador durante o run (o item pedia "o reconcile roda dentro do ciclo"). Ele
 acusa **divergência de contador**, que é o que pegou o caso de 16/11; nomear prefab e posição da órfã durante o run
 continua não implementado.
+
+**Estado em 17/11/2026 (fim do dia, run com as correções da revisão): (a) NÃO está fechado — o ciclo achou o
+defeito na forma pura e o reproduziu.**
+
+O run final (91 amostras, morte forçada) fechou `hc_ai_blueprint_done` com **984 na cena e 985 contadas**, e o
+reconcile acusou **1 peça sem explicação**: `wood_floor` em `(1.18, 0.00, 10.23)`, no térreo. A causa é outra e é
+mais simples que a do 16/11: **a passada de retry pula peça por pertencer ao `PlacedIndices`** (`a peça N/M já está de
+pé (outra tentativa a deixou lá)`) **sem reconferir a cena** — as 6 peças do retry foram puladas assim. O
+`RecheckStanding` só roda numa **retomada**, e depois da última colocação não houve retomada: a peça sumiu e ninguém
+reconferiu.
+
+O que este ciclo entrega, medido e honesto:
+- a retomada **não confia mais** no conjunto salvo: varre as peças em volta do corpo (fatias de altura, raio alargado
+  `sqrt(r²+(h/2)²)`) e devolve à fila o que não está na cena. Depois das duas correções, medido: **0 falsos positivos**
+  e, num run anterior, **2 peças devolvidas e as duas repostas**;
+- o alarme de contador passou a existir e a ser **provado contra os runs gravados** (silêncio no saudável, uma linha
+  no que tinha defeito). **Mas o limiar escolhido (3 amostras seguidas) deixou passar este run**: o buraco apareceu em
+  **2 amostras** com `gap -1` e o alarme ficou calado.
+- o `Complete()` está certo em comparação (não fecha com peça faltando **segundo o contador**); o problema é que o
+  **contador pode ficar 1 acima da cena**.
+
+**Para fechar (a) de verdade** falta uma coisa só, e ela é mudança de comportamento que merece ciclo próprio: **a
+passada de retry também tem de reconferir a cena** antes de pular uma peça como "já está de pé". E o limiar do alarme
+precisa descer para **1 amostra no sentido perigoso** (o custo de um falso alarme é uma linha de log; o custo de um
+buraco silencioso é uma casa furada).
 
 **(d) continua aberto, e agora com o motivo certo:** *a ordem cancelada pelo jogador ("para") **não escreve número de
 fechamento nenhum*** — `MHR_Build.Cancel` remove o estado sem passar pelo `Finish` (verificado: o run curto tem

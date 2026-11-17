@@ -15,13 +15,13 @@ IA** (LLM/voz/fala) + **localização** por cima.
 |---|---|
 | versão | **1.9.8** (`PluginVersion` em `src/Companions/Core/CompanionsPlugin.cs`); `package/CHANGELOG.md` tem a seção `1.9.8 - 16/11/2026` |
 | build | `dotnet build Companions.sln -c Release` → **0 erros, 0 avisos** |
-| harness (redes por palavras + tabelas puras) | **1245 PASS / 0 FAIL** em **49 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
+| harness (redes por palavras + tabelas puras) | **1247 PASS / 0 FAIL** em **49 seções** (`--list` imprime todas; `--only=(p)` roda uma) |
 | MCP mock (sem jogo) | **135 PASS / 0 FAIL** |
 | reconciliacao cena x blueprint | `python tools/test_reconcile_scene.py` → **5 PASS / 0 FAIL** |
-| alarme de contador do run | `python tools/test_run_watch_alarm.py` → **6 PASS / 0 FAIL** |
+| alarme de contador do run | `python tools/test_run_watch_alarm.py` → **9 PASS / 0 FAIL** (com replay dos runs gravados) |
 | config documentada | **368 opções / 25 seções** (`gen_config_doc.py --check`) |
 | gate de release | **9/9 PASS** |
-| branch de trabalho | `fix/resume-orphan-piece` (fecha (a) e (c) do item 11g; a linha de release é a `main`) |
+| branch de trabalho | `fix/resume-orphan-piece` (parcial no item 11g — ver o item: a retomada confere a cena, mas a passada de retry ainda não) |
 
 Se algum número acima não bater, **o código ganha** — rode o comando e corrija a tabela.
 
