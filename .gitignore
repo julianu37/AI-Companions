@@ -51,3 +51,6 @@ tools/plan-probe/plan-dump.txt
 
 # clones de referencia de terceiros (nao entram no repo)
 .refs/
+
+# workspace do plano (scratch do executor de planos; o historico e o git)
+.superpowers/

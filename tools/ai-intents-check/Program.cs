@@ -148,6 +148,7 @@ internal static class Program
 		new SectionDef("as", "BuildRecovery/Finish - a obra nao fecha com peca faltando", IncompleteOrders),
 		new SectionDef("at", "BuildProgress - a obra retomada nao recaminha o que ja esta de pe", ResumeProgress),
 		new SectionDef("au", "BuildAdjustPose - o ajuste move a peca de lado, nunca de andar", AdjustPoseStorey),
+		new SectionDef("av", "BuildResumeCheck - a peca que sumiu volta para a fila na retomada", ResumeOrphan),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2260,6 +2261,70 @@ internal static class Program
 		// 6) the edge of the range, literally
 		Check("o ultimo indice do plano e valido, o plano inteiro nao",
 			BuildProgress.InPlan(984, 985) && !BuildProgress.InPlan(985, 985), "InPlan(984/985, 985)");
+	}
+
+	/// <summary>
+	/// Section (av) - <c>BuildResumeCheck</c>: <b>a piece the resumed order believes is standing, but the scene does not
+	/// have, goes back to the queue</b>. The case is the run of 16/11/2026 (backlog item 11g): the slab <c>#692</c> of the
+	/// plan was <c>placed (Direct)</c> and <c>done ... supported</c>, the companion fell 6,8 m and died, and after the
+	/// resume the slab was not in the scene - the order walked on as if it were, and the house closed with a hole the log
+	/// never mentioned. The check is the CHEAP one the player chose: a sweep of the game's own piece list around the body,
+	/// never a ghost test per piece.
+	/// </summary>
+	private static void ResumeOrphan()
+	{
+		List<UnityEngine.Vector3> poses = SpreadPlan(new[] { 0f, 4f, 8f, 12f, 16f });
+		var suspects = new HashSet<int>();
+
+		// 1) the radius decides who is re-checked: only the pieces near the body
+		int n = BuildResumeCheck.Suspects(new[] { 0, 1, 2, 3, 4 }, poses, new UnityEngine.Vector3(0f, 40f, 0f), 6f, suspects);
+		Check("so os indices dentro de 6 m sao rechecados (2 de 5)",
+			n == 2 && suspects.SetEquals(new[] { 0, 1 }), "suspeitos " + string.Join(",", suspects));
+
+		// 2) a piece absent from the sweep is missing; a piece present is not
+		var missing = new HashSet<int>();
+		int m = BuildResumeCheck.Missing(new[] { 0, 1 }, poses, new List<UnityEngine.Vector3> { poses[1] }, missing);
+		Check("a peca que nao esta na cena volta para a fila (so a #0)",
+			m == 1 && missing.SetEquals(new[] { 0 }), "faltando " + string.Join(",", missing));
+
+		// 3) the metric is FLAT: a piece one storey up at the same XZ is the same piece
+		missing.Clear();
+		BuildResumeCheck.Missing(new[] { 0 }, poses,
+			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0f, 3f, 0f) }, missing);
+		Check("a mesma peca 3 m acima no mesmo XZ casa (o teste e XZ, nao 3D)",
+			missing.Count == 0, "faltando " + missing.Count);
+
+		// 4) the slack: 0,45 m is the same piece, 0,60 m is not
+		missing.Clear();
+		BuildResumeCheck.Missing(new[] { 0 }, poses,
+			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0.45f, 0f, 0f) }, missing);
+		bool same = missing.Count == 0;
+		missing.Clear();
+		BuildResumeCheck.Missing(new[] { 0 }, poses,
+			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0.60f, 0f, 0f) }, missing);
+		Check("a tolerancia e 0,45 m: 0,45 casa e 0,60 nao", same && missing.Count == 1, "faltando " + missing.Count);
+
+		// 5) FAIL-OPEN: an empty sweep removes nothing (the world was not ready)
+		var kept = new HashSet<int>();
+		int k = BuildResumeCheck.Missing(new[] { 0, 1 }, poses, new UnityEngine.Vector3[0], kept);
+		Check("cena vazia nao apaga nada (fail-open)", k == 0 && kept.Count == 0, "removidas " + k);
+
+		// 6) a broken pose is never a suspect
+		suspects.Clear();
+		var nan = new UnityEngine.Vector3(float.NaN, 40f, 0f);
+		BuildResumeCheck.Suspects(new[] { 0 }, new List<UnityEngine.Vector3> { nan }, UnityEngine.Vector3.zero, 6f, suspects);
+		Check("pose NaN do plano nunca e suspeita", suspects.Count == 0, "suspeitos " + suspects.Count);
+	}
+
+	/// <summary>Section (av): a plan of pieces on y = 40, one every <paramref name="xs"/> metres (the metric is XZ).</summary>
+	private static List<UnityEngine.Vector3> SpreadPlan(float[] xs)
+	{
+		var list = new List<UnityEngine.Vector3>();
+		foreach (float x in xs)
+		{
+			list.Add(new UnityEngine.Vector3(x, 40f, 0f));
+		}
+		return list;
 	}
 
 	/// <summary>
