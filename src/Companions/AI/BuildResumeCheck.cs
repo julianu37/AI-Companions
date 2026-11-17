@@ -76,8 +76,10 @@ internal static class BuildResumeCheck
 	/// a false "standing" costs the hole this rule exists to close - and it is the cheaper of the two to be wrong about,
 	/// because the walk finds "já está de pé" in one line and pays no material.</para>
 	/// </summary>
-	internal static int Missing(IEnumerable<int> suspects, IList<Vector3> poses, IList<Vector3> standing, ISet<int> into)
+	internal static int Missing(IEnumerable<int> suspects, IList<Vector3> poses, IList<Vector3> standing, float slack,
+		ISet<int> into)
 	{
+		float limit = Finite(slack) && slack > 0f ? slack : MatchSlack;
 		if (suspects == null || poses == null || into == null || standing == null || standing.Count == 0)
 		{
 			return 0;
@@ -92,7 +94,7 @@ internal static class BuildResumeCheck
 			bool found = false;
 			for (int i = 0; i < standing.Count && !found; i++)
 			{
-				if (Finite(standing[i]) && Flat(poses[index], standing[i]) <= MatchSlack)
+				if (Finite(standing[i]) && Flat(poses[index], standing[i]) <= limit)
 				{
 					found = true;
 				}
@@ -144,6 +146,20 @@ internal static class BuildResumeCheck
 			added++;
 		}
 		return added;
+	}
+
+	/// <summary>
+	/// 16/11/2026 (review): the radius a slice's sphere needs so that the whole <paramref name="radius"/> disc is covered
+	/// at every height, not only at the slice plane. A sphere centred on the plane reaches only
+	/// <c>sqrt(r^2 - dy^2)</c> horizontally at <c>dy</c> below it, so with the sphere radius equal to the disc radius a
+	/// piece 5,9 m out at mid-slice is missed (measured geometry: 5,20 m at dy = 3). This answers
+	/// <c>sqrt(r^2 + (step/2)^2)</c> - 6,7 m for r = step = 6 m.
+	/// </summary>
+	internal static float SweepRadius(float radius, float step)
+	{
+		float r = Finite(radius) && radius > 0f ? radius : 0f;
+		float h = Finite(step) && step > 0f ? step / 2f : 0f;
+		return (float)System.Math.Sqrt(r * r + h * h);
 	}
 
 	/// <summary>Horizontal distance (XZ) between two points - the same rule (and the same guard) as

@@ -1,14 +1,16 @@
 """Testes do alarme de contador do tools/mcp-devbridge/run_watch.py (sem jogo).
 
 Por que existe: no run de 16/11/2026 o sampler viu `done=985 in_scene=984` em 20 amostras
-seguidas e o -1 foi lido como ruido - a peca orfa so apareceu no reconcile, no fim, como
-formalidade de aceite. O alarme e a rede que faltava: enquanto o run acontece, o contador
-do mod e a cena tem de concordar.
+seguidas e o -1 foi lido como ruido - a peca orfa so apareceu no reconcile, no fim.
+
+As fixtures sao os runs GRAVADOS, nao linhas inventadas: um alarme que fala no run saudavel
+e tao inutil quanto um que fica calado no run com buraco, e so o arquivo real prova os dois.
 
 Rodar: python tools/test_run_watch_alarm.py
 """
 
 import importlib.util
+import json
 import os
 import sys
 import unittest
@@ -28,40 +30,80 @@ def load_watch():
     return module
 
 
+def load_rows(name):
+    path = os.path.join(ADAPTER_DIR, name)
+    with open(path, encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def alarms(rows):
+    """Replay the samples through the alarm exactly the way the loop does."""
+    state = {"streak": 0, "spoken": False}
+    return [line for line in (W.gap_alarm(row, state) for row in rows) if line is not None]
+
+
 W = load_watch()
 
 
-class Alarm(unittest.TestCase):
+class Rule(unittest.TestCase):
     def test_no_alarm_when_the_pair_agrees(self):
-        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 985}, None))
+        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 985}, {"streak": 0, "spoken": False}))
 
-    def test_alarm_on_the_measured_gap(self):
-        # the 16/11 case: the same -1 held for 20 samples. It speaks on the third one in a row, not the first.
-        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, None))
-        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, -1))
-        line = W.gap_alarm({"done": 985, "in_scene": 984}, -2)
+    def test_the_scene_ahead_is_a_race_not_a_hole(self):
+        # measured 17/11/2026: a healthy run shows +1..+7 once each (the piece exists before its `done:` line)
+        state = {"streak": 0, "spoken": False}
+        for gap in (3, 2, 3, 4, 7, 1):
+            self.assertIsNone(W.gap_alarm({"done": 100, "in_scene": 100 + gap}, state))
+
+    def test_one_and_two_sightings_of_a_hole_are_silent(self):
+        state = {"streak": 0, "spoken": False}
+        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
+        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
+
+    def test_the_third_sighting_in_a_row_speaks_once(self):
+        state = {"streak": 0, "spoken": False}
+        for _ in range(2):
+            W.gap_alarm({"done": 985, "in_scene": 984}, state)
+        line = W.gap_alarm({"done": 985, "in_scene": 984}, state)
         self.assertIn("ALARME", line)
         self.assertIn("-1", line)
+        for _ in range(5):
+            self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
 
-    def test_alarm_keeps_speaking_while_the_gap_holds(self):
-        # a hole that stays open is worth one line per sample after the third: it is not noise any more
-        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, -3))
-
-    def test_gap_changing_sign_starts_over(self):
-        # +4 then -4 are not the same story: the streak resets, so a flapping pair never becomes an alarm
-        self.assertIsNone(W.gap_alarm({"done": 758, "in_scene": 762}, -2))
-        self.assertIsNone(W.gap_alarm({"done": 762, "in_scene": 758}, 1))
+    def test_it_speaks_again_after_the_pair_agrees_and_breaks_again(self):
+        state = {"streak": 0, "spoken": False}
+        for _ in range(3):
+            W.gap_alarm({"done": 985, "in_scene": 984}, state)
+        self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 985}, state))
+        for _ in range(2):
+            self.assertIsNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
+        self.assertIsNotNone(W.gap_alarm({"done": 985, "in_scene": 984}, state))
 
     def test_missing_counters_produce_no_alarm(self):
-        self.assertIsNone(W.gap_alarm({"done": None, "in_scene": None}, None))
+        self.assertIsNone(W.gap_alarm({"done": None, "in_scene": None}, {"streak": 0, "spoken": False}))
 
-    def test_one_sighting_is_a_race_not_an_alarm(self):
-        # measured 17/11/2026: a healthy run showed +3, +4, +7 once each (the piece exists before its `done:` line);
-        # the longest the same gap ever held was 2 samples. The backlog case of 16/11 held for 20.
-        # previous_gap is the counter the caller keeps: the streak with its sign (3 = third sample of +gap).
-        self.assertIsNone(W.gap_alarm({"done": 758, "in_scene": 762}, None))   # 1st sighting -> streak 1, silent
-        self.assertIsNone(W.gap_alarm({"done": 758, "in_scene": 762}, 1))      # 2nd -> streak 2, silent
-        self.assertIsNotNone(W.gap_alarm({"done": 758, "in_scene": 762}, 2))   # 3rd -> streak 3, speaks
+
+class RecordedRuns(unittest.TestCase):
+    """The two runs of 17/11/2026, replayed from the files the sampler wrote."""
+
+    def test_the_healthy_run_is_silent(self):
+        rows = load_rows("run-resumecheck-slices.jsonl")
+        self.assertGreater(len(rows), 50, "fixture missing or too small")
+        self.assertEqual([], alarms(rows), "o run que fechou 985/985 nao pode alarmar")
+
+    def test_the_run_that_had_the_defect_does_alarm(self):
+        # this is the FIRST run of 17/11, the one that exposed the 3D-sphere bug: 22 pieces returned, all false,
+        # and 87 samples with the scene short of the counter. The alarm has to speak on it.
+        rows = load_rows("run-resumecheck-clean.jsonl")
+        self.assertGreater(len(rows), 50, "fixture missing or too small")
+        found = alarms(rows)
+        self.assertEqual(1, len(found), "um episodio de buraco = uma linha, nao uma por amostra")
+        self.assertIn("ALARME", found[0])
+
+    def test_a_recorded_hole_does_alarm(self):
+        # the 16/11 case rebuilt from its own numbers: the same -1 for 20 samples in a row
+        rows = [{"t": "15:00:%02d" % i, "done": 985, "in_scene": 984} for i in range(20)]
+        self.assertEqual(1, len(alarms(rows)), "o buraco de 16/11 tem de falar UMA vez")
 
 
 if __name__ == "__main__":

@@ -2283,30 +2283,30 @@ internal static class Program
 
 		// 2) a piece absent from the sweep is missing; a piece present is not
 		var missing = new HashSet<int>();
-		int m = BuildResumeCheck.Missing(new[] { 0, 1 }, poses, new List<UnityEngine.Vector3> { poses[1] }, missing);
+		int m = BuildResumeCheck.Missing(new[] { 0, 1 }, poses, new List<UnityEngine.Vector3> { poses[1] }, BuildResumeCheck.MatchSlack, missing);
 		Check("a peca que nao esta na cena volta para a fila (so a #0)",
 			m == 1 && missing.SetEquals(new[] { 0 }), "faltando " + string.Join(",", missing));
 
 		// 3) the metric is FLAT: a piece one storey up at the same XZ is the same piece
 		missing.Clear();
 		BuildResumeCheck.Missing(new[] { 0 }, poses,
-			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0f, 3f, 0f) }, missing);
+			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0f, 3f, 0f) }, BuildResumeCheck.MatchSlack, missing);
 		Check("a mesma peca 3 m acima no mesmo XZ casa (o teste e XZ, nao 3D)",
 			missing.Count == 0, "faltando " + missing.Count);
 
 		// 4) the slack: 0,45 m is the same piece, 0,60 m is not
 		missing.Clear();
 		BuildResumeCheck.Missing(new[] { 0 }, poses,
-			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0.45f, 0f, 0f) }, missing);
+			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0.45f, 0f, 0f) }, BuildResumeCheck.MatchSlack, missing);
 		bool same = missing.Count == 0;
 		missing.Clear();
 		BuildResumeCheck.Missing(new[] { 0 }, poses,
-			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0.60f, 0f, 0f) }, missing);
+			new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(0.60f, 0f, 0f) }, BuildResumeCheck.MatchSlack, missing);
 		Check("a tolerancia e 0,45 m: 0,45 casa e 0,60 nao", same && missing.Count == 1, "faltando " + missing.Count);
 
 		// 5) FAIL-OPEN: an empty sweep removes nothing (the world was not ready)
 		var kept = new HashSet<int>();
-		int k = BuildResumeCheck.Missing(new[] { 0, 1 }, poses, new UnityEngine.Vector3[0], kept);
+		int k = BuildResumeCheck.Missing(new[] { 0, 1 }, poses, new UnityEngine.Vector3[0], BuildResumeCheck.MatchSlack, kept);
 		Check("cena vazia nao apaga nada (fail-open)", k == 0 && kept.Count == 0, "removidas " + k);
 
 		// 6) a broken pose is never a suspect
@@ -2338,6 +2338,28 @@ internal static class Program
 			count >= 2 && covers, "fatias " + count + " em " + string.Join(",", slices));
 		Check("fatia de raio 0 devolve nada (fail-open)",
 			BuildResumeCheck.SliceCenters(tall, UnityEngine.Vector3.zero, 0f, 6f, slices) == 0, "fatias " + slices.Count);
+
+		// 8) COVERAGE (review, 17/11/2026): an assertion that only looked at a slice PLANE missed the horizontal term.
+		//    A piece 5,9 m out at mid-slice is inside the disc and a plane-sized sphere misses it. SweepRadius has to
+		//    reach it: sqrt(6^2 + 3^2) = 6,71.
+		float sweep = BuildResumeCheck.SweepRadius(6f, 6f);
+		float worstXz = 5.9f;
+		float dy = 3f;
+		bool reaches = worstXz * worstXz + dy * dy <= sweep * sweep;
+		Check("a esfera da fatia alcanca o disco inteiro a meia fatia (sqrt(r2+(h/2)2))",
+			reaches && sweep > 6f && sweep < 7f, "raio " + sweep.ToString("F2") + ", alcanca " + reaches);
+
+		// 9) THE NUDGED PIECE (review, 17/11/2026): the plan keeps the ORIGINAL pose and a placed piece may have been
+		//    moved by up to 5 m (furniture). With the tight 0,45 m it looks missing and would be paid twice; with the
+		//    nudge radius it is recognised.
+		var nudged = new List<UnityEngine.Vector3> { poses[0] + new UnityEngine.Vector3(4.5f, 0f, 0f) };
+		missing.Clear();
+		BuildResumeCheck.Missing(new[] { 0 }, poses, nudged, BuildResumeCheck.MatchSlack, missing);
+		bool tightSaysMissing = missing.Count == 1;
+		missing.Clear();
+		BuildResumeCheck.Missing(new[] { 0 }, poses, nudged, 5f, missing);
+		Check("peca que o ajuste moveu 4,5 m nao e dada como faltando (tolerancia do nudge)",
+			tightSaysMissing && missing.Count == 0, "faltando " + missing.Count);
 	}
 
 	/// <summary>Section (av): a plan of pieces on y = 40, one every <paramref name="xs"/> metres (the metric is XZ).</summary>

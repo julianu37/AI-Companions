@@ -8617,7 +8617,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			s_resumePoses.Add(fresh.Plan[i] != null ? fresh.Plan[i].Pos : new Vector3(float.NaN, 0f, 0f));
 		}
 		var suspects = new HashSet<int>();
-		BuildResumeCheck.Suspects(fresh.PlacedIndices, s_resumePoses, fresh.Anchor, ResumeCheckRadius, suspects);
+		// the BODY, not the blueprint origin (review, 17/11/2026): the anchor is a corner of the footprint and the
+		// measured fall happened at the top-storey edge - checking a column over the origin would miss it.
+		Vector3 body = ai != null && ai.transform != null ? ai.transform.position : fresh.Anchor;
+		BuildResumeCheck.Suspects(fresh.PlacedIndices, s_resumePoses, body, ResumeCheckRadius, suspects);
 		if (suspects.Count == 0)
 		{
 			return;
@@ -8627,11 +8630,12 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// the same way build.delete sweeps a tall build: one sphere per slice of height, so the whole column is covered.
 		s_resumeStanding.Clear();
 		s_resumeSlices.Clear();
-		BuildResumeCheck.SliceCenters(s_resumePoses, fresh.Anchor, ResumeCheckRadius, ResumeCheckRadius, s_resumeSlices);
+		BuildResumeCheck.SliceCenters(s_resumePoses, body, ResumeCheckRadius, ResumeCheckRadius, s_resumeSlices);
 		foreach (Vector3 center in s_resumeSlices)
 		{
 			s_resumePieces.Clear();
-			Piece.GetAllPiecesInRadius(center, ResumeCheckRadius, s_resumePieces);
+			Piece.GetAllPiecesInRadius(center, BuildResumeCheck.SweepRadius(ResumeCheckRadius, ResumeCheckRadius),
+				s_resumePieces);
 			foreach (Piece piece in s_resumePieces)
 			{
 				if (piece != null)
@@ -8641,7 +8645,10 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			}
 		}
 		var missing = new HashSet<int>();
-		BuildResumeCheck.Missing(suspects, s_resumePoses, s_resumeStanding, missing);
+		// the plan pose is the ORIGINAL one: `BuildAdjustPose` moves the placed piece by up to 1 m (structural) / 5 m
+		// (furniture) and the plan keeps the original pose (review, 17/11/2026 - a nudged piece would look missing and
+		// pay twice). The match therefore uses the widest nudge, not the reconciliation's tight 0,45 m.
+		BuildResumeCheck.Missing(suspects, s_resumePoses, s_resumeStanding, NudgeFurnitureRadius, missing);
 		if (missing.Count == 0)
 		{
 			return;
