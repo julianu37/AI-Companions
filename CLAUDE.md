@@ -149,6 +149,37 @@ because the downloaded models live there.
 `docs/re/packaging-layout.md` · `docs/mcp-devbridge.md` (DevBridge protocol and test recipes) ·
 `docs/re/ciclo-de-run-devbridge.md` (**the run procedure**: close the game → build → `world_enter` → clean the site →
 `run_watch.py` → order → report; read it before starting a run, never re-derive it) ·
-`docs/re/stt-*.md`, `docs/re/tts-kokoro-sherpa-onnx.md` (local voice) · `docs/wiki/` (GitHub Wiki source) ·
-`.opencode/skills/` (domain skills: `bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`,
-`valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`, `valheim-assets`, `jotunn`).
+`docs/re/stt-*.md`, `docs/re/tts-kokoro-sherpa-onnx.md` (local voice) · `docs/wiki/` (GitHub Wiki source).
+
+## Harness (Claude Code)
+
+Everything the agent needs is native Claude Code config in this repo — **no proprietary orchestration layer**:
+
+| path | what it is |
+|---|---|
+| `.claude/skills/<name>/SKILL.md` | domain skills, loaded on demand: `bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`, `valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`, `valheim-assets` |
+| `.claude/agents/*.md` | project subagents (`valheim-csharp`, `valheim-re`, `valheim-harmony`, `valheim-qa`, `valheim-reviewer`, `valheim-i18n`, `valheim-netcode`, `valheim-ai-brain`, `valheim-devbridge-runner`, `valheim-docs`) |
+| `.mcp.json` | `valheim-devbridge` (the DevBridge adapter), `context7`, `learn` |
+| `.claude/settings.json` | project permissions (build with `SkipDeploy` allowed, the deploying build asks, `--force` denied) and the ECC hook profile |
+
+**Delegate by default, decide by cost:** an agent is worth it when the work is independent and parallel, or when the
+answer needs reading across many files; a lookup or a handful of tool calls is cheaper done inline. The subagents are
+specialists, not a chain — no orchestrator agent decides for you.
+
+Plugin layer (user-scope, already installed): **ECC** (specialist agents/commands, hooks in `minimal` profile),
+**Superpowers** (process skills: brainstorming, systematic-debugging, TDD, verification-before-completion),
+**Claude-Mem** (persistent memory across sessions — durable decisions, measured facts and pitfalls; not a copy of the
+docs), **Ponytail** (simplicity/YAGNI rules and `/ponytail-review`).
+
+**Memory split (do not duplicate):** `CLAUDE.md` = rules that apply to every session (build deploys, paths, workflow);
+`AGENTS.md` = current state with measured numbers and the pitfalls that cost a session; `docs/re/*` = measured history
+run by run; **Claude-Mem** = durable decisions and recurring failures that have no home in a file. Claude-Mem is a
+complement to the docs, never a second copy: store the *why* and the *gotcha*, not file contents.
+
+**Process skills from Superpowers apply to non-trivial work:** `superpowers:brainstorming` before designing a feature,
+`superpowers:systematic-debugging` before "fixing" a bug (root cause first — the project's rule), TDD where the harness
+covers it, and `superpowers:verification-before-completion` before saying done. Ponytail sets the size of the change:
+smallest complete diff, no speculative abstraction — but never at the cost of validation, error handling or Valheim
+compatibility.
+
+Third-party reference checkouts live in `~/.local/share/valheim-refs/` (not in the repo).

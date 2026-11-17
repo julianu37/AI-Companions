@@ -3,7 +3,7 @@
 Status: **feito na 1.9.0** (branch `feat/idiomas-auto`, mergeada na `main`): cinco idiomas (PT/EN/ES/FR/IT), config
 automática, contrato do LLM por idioma, redes de intenção (`GatherIntent`/`RadialIntent`) e o italiano. Ficam para
 depois **JA/ZH** (dependem de validação no sherpa e, no zh, dos `lexicon-zh.txt`/`*-zh.fst`). Base: skill
-`.opencode/skills/kokoro/`.
+`.claude/skills/kokoro/`.
 
 > **M1 entregue (ver `AGENTS.md`, *Fase M1 da multilinguagem*):** `Core/CompanionLocale.cs` (tabela única +
 > `Resolve*`), `auto` como padrão de `[AI] VoiceLanguage`, `[AI] TtsLanguage` e `[AI] TtsVoice` (0 = automático),

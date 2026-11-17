@@ -563,13 +563,13 @@ def cut_entry(path, key):
 
 
 def selftest_config():
-    """Copia os 4 arquivos para `%TEMP%\\opencode\\audit-config-selftest`, apaga UMA chave de config de DOIS arquivos
+    """Copia os 4 arquivos para `%TEMP%\\ai-companions\\audit-config-selftest`, apaga UMA chave de config de DOIS arquivos
     na copia e exige que a checagem acuse cada uma no seu arquivo. Prova os dois lados sem editar o repositorio."""
     import shutil
     import tempfile
 
     temp = os.path.abspath(tempfile.gettempdir())
-    base = os.path.join(temp, 'opencode', 'audit-config-selftest')
+    base = os.path.join(temp, 'ai-companions', 'audit-config-selftest')
     if os.path.isdir(base) and os.path.abspath(base).startswith(temp):
         shutil.rmtree(base)
     os.makedirs(base)

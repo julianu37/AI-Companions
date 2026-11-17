@@ -235,7 +235,7 @@ character does not answer the controls (and the push-to-talk key does not record
 | `Translations/`, `Speech/` | The translations of the five languages (interface and speech) — the build copies them into the plugin; **English is native** and needs no file |
 | `package/` | Package files (icon, README/CHANGELOG, guide and configuration) |
 | `docs/` | Roadmap, vision, phase plan, reverse engineering and technical notes |
-| `.opencode/` | The **agent team** used to develop the project |
+| `.claude/` | The **agent harness** used to develop the project (Claude Code: skills, subagents, settings) |
 
 ## Documentation
 
