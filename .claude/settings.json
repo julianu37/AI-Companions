@@ -3,9 +3,14 @@
     "allow": [
       "Bash(dotnet build Companions.sln -c Release -p:SkipDeploy=true)",
       "Bash(dotnet run --project tools/ai-intents-check:*)",
+      "Bash(python tools/:*)",
+      "Bash(python -I tools/:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git ls-files:*)",
+      "Skill(*)"
     ],
     "ask": [
       "Bash(dotnet build Companions.sln -c Release)"
