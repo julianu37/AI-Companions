@@ -10,10 +10,11 @@ Legenda: ✅ concluído · 🔄 em andamento · ⏳ pendente
 
 | Item | Status |
 |---|---|
-| **17** agentes (1 orquestrador + 16 especialistas) em `.opencode/agents/` — era 10 no início | ✅ |
-| **10** skills (`bepinex`, `jotunn`, `valheim-reverse-engineering`, `valheim-ai-backend`, `valheim-assets`, `kokoro`, `valheim-devbridge`, `valheim-ai-orders`, `valheim-mod-research`, `reverse-engineer-anything`) — eram 5 no início | ✅ |
-| `AGENTS.md`, `opencode.jsonc`, references (BepInEx, Jotunn) | ✅ |
-| MCPs (`alvin` = Visual Studio, `context7`, `learn`) | ✅ |
+| **10** subagentes especialistas em `.claude/agents/` (era 17 no OpenCode; sem orquestrador próprio — o Claude Code nativo orquestra) | ✅ |
+| **8** skills em `.claude/skills/` (`bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`, `valheim-assets`, `valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`); a `jotunn` saiu (0 usos no código) | ✅ |
+| `AGENTS.md`, `CLAUDE.md`, `.mcp.json`, references (BepInEx) | ✅ |
+| Plugins: ECC (perfil `minimal`), Superpowers, Claude-Mem, Ponytail | ✅ |
+| MCPs (`valheim-devbridge`, `context7`, `learn`) | ✅ |
 | Repositório no GitHub | ✅ |
 
 ## Trilha B — O mod

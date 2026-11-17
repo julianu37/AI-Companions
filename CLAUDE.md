@@ -149,6 +149,71 @@ because the downloaded models live there.
 `docs/re/packaging-layout.md` · `docs/mcp-devbridge.md` (DevBridge protocol and test recipes) ·
 `docs/re/ciclo-de-run-devbridge.md` (**the run procedure**: close the game → build → `world_enter` → clean the site →
 `run_watch.py` → order → report; read it before starting a run, never re-derive it) ·
-`docs/re/stt-*.md`, `docs/re/tts-kokoro-sherpa-onnx.md` (local voice) · `docs/wiki/` (GitHub Wiki source) ·
-`.opencode/skills/` (domain skills: `bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`,
-`valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`, `valheim-assets`, `jotunn`).
+`docs/re/stt-*.md`, `docs/re/tts-kokoro-sherpa-onnx.md` (local voice) · `docs/wiki/` (GitHub Wiki source).
+
+## Harness (Claude Code)
+
+Everything the agent needs is native Claude Code config in this repo — **no proprietary orchestration layer**:
+
+| path | what it is |
+|---|---|
+| `.claude/skills/<name>/SKILL.md` | domain skills, loaded on demand: `bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`, `valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`, `valheim-assets` |
+| `.claude/agents/*.md` | project subagents (`valheim-csharp`, `valheim-re`, `valheim-harmony`, `valheim-qa`, `valheim-reviewer`, `valheim-i18n`, `valheim-netcode`, `valheim-ai-brain`, `valheim-devbridge-runner`, `valheim-docs`) |
+| `.mcp.json` | `valheim-devbridge` (the DevBridge adapter), `context7`, `learn` |
+| `.claude/settings.json` | project permissions (build with `SkipDeploy` allowed, the deploying build asks, `--force` denied) and the ECC hook profile |
+
+**Delegate by default, decide by cost:** an agent is worth it when the work is independent and parallel, or when the
+answer needs reading across many files; a lookup or a handful of tool calls is cheaper done inline. The subagents are
+specialists, not a chain — no orchestrator agent decides for you.
+
+### Automatic use — the player never types a slash command
+
+The player talks normally. This table says what happens without being asked. Follow it every turn; it is the contract,
+not a menu.
+
+| when | what fires automatically | how |
+|---|---|---|
+| a task touches a domain in `.claude/skills/` (BepInEx/Harmony, LLM contract, orders/intents, voice, DevBridge, `.blueprint`, decompiling) | the matching **project skill** | `Skill` before writing code — the description of each skill names its triggers |
+| a bug, a crash or "it doesn't work" | `superpowers:systematic-debugging` | root cause before any edit (project rule); then the `valheim-*` specialist if the fix needs domain knowledge |
+| "build me / add / change X" where the design is not settled | `superpowers:brainstorming`, then `superpowers:writing-plans` | before writing code; a settled, one-file change skips both |
+| a rule with a real decision in it (parser, priority, grouping) | `superpowers:test-driven-development` + assertions in `tools/ai-intents-check` | harness is the proof; only-additions rule applies |
+| before saying "done", "fixed", "green" | `superpowers:verification-before-completion` | run the command, quote the numbers (already required by *Verification loop*) |
+| a change is about to be committed or a cycle closes | **`ponytail:ponytail-review`** | the quality gate — leaning, correctness, tests; report before commit |
+| work that is independent and parallel, or reads many files | a **subagent** from `.claude/agents/` (or `Explore` for a search) | one message with several `Agent` calls; never an agent for a lookup |
+| a non-obvious decision, a measured fact, or a pitfall that bit us | **Claude-Mem** write | `save_memory` / `work_state_write` — the *why*, not file contents |
+| the session starts and the task may have prior context | **Claude-Mem** read | `search` (index) → `timeline` → `get_observations`; never auto/guided modes |
+| C# with threading, ZDO ownership, UI sort orders, or a signature change | `ecc:csharp-reviewer` **or** `valheim-reviewer` | one of them, not both: the project reviewer knows the repo's rules, the ECC one knows .NET |
+| translations, config labels, a new `ModConfig` option | `valheim-i18n` | it runs the audit scripts and reports; the 4 JSONs are the gate |
+| a release closes | `tools/release-check.ps1` first, then `valheim-docs` | 9/9 before tag; docs are delivery, not leftovers |
+
+**What does not fire by itself** (and does not need to): every ECC command (`/ecc:*`), the ECC reference skills, the
+`ponytail-*` reports other than `ponytail-review`, and `claude-mem`'s own commands. They stay available for an explicit
+ask — do not invoke them to "use the tool".
+
+**Rules of engagement for the plugins:**
+- **One reviewer per change**: for C# prefer `valheim-reviewer` (it knows the repo rules); reach for
+  `ecc:csharp-reviewer` when the question is .NET purity (async, nullable, allocation) and the repo rules are not in play.
+- **`ecc:*` agents run on their own pinned model.** Do not use them for a step whose output you will build on — the
+  project agents and the main session run on the single configured model. Route a `sonnet`/`opus`-pinned ECC agent only
+  to read-only, self-contained work.
+- **Never both reviewers on one diff**, and never a second opinion just to be safe.
+- **Claude-Mem is not a diary**: if a fact already lives in `AGENTS.md`, `docs/re/` or this file, do not copy it — link it.
+- **A skill is not "used" because it was loaded**: the work has to show its effect (a check run, a rule applied).
+
+Plugin layer (user-scope, already installed): **ECC** (72 agents, 327 skills, 98 commands, hooks in `minimal` profile),
+**Superpowers** (process skills: brainstorming, systematic-debugging, TDD, verification-before-completion),
+**Claude-Mem** (persistent memory across sessions — durable decisions, measured facts and pitfalls; not a copy of the
+docs), **Ponytail** (simplicity/YAGNI rules, active for the whole session; `ponytail-review` is the commit gate).
+
+**Memory split (do not duplicate):** `CLAUDE.md` = rules that apply to every session (build deploys, paths, workflow);
+`AGENTS.md` = current state with measured numbers and the pitfalls that cost a session; `docs/re/*` = measured history
+run by run; **Claude-Mem** = durable decisions and recurring failures that have no home in a file. Claude-Mem is a
+complement to the docs, never a second copy: store the *why* and the *gotcha*, not file contents.
+
+**Process skills from Superpowers apply to non-trivial work:** `superpowers:brainstorming` before designing a feature,
+`superpowers:systematic-debugging` before "fixing" a bug (root cause first — the project's rule), TDD where the harness
+covers it, and `superpowers:verification-before-completion` before saying done. Ponytail sets the size of the change:
+smallest complete diff, no speculative abstraction — but never at the cost of validation, error handling or Valheim
+compatibility.
+
+Third-party reference checkouts live in `~/.local/share/valheim-refs/` (not in the repo).

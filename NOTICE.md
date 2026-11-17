@@ -17,5 +17,5 @@ This repository is a **personal study project** about modding for **Valheim**.
   repository (the models stay outside git).
 - "Valheim" and other trademarks belong to their respective owners.
 
-The content of the agents and skills in `.opencode/` and the documentation of this project are original to this
+The content of the agents and skills in `.claude/` and the documentation of this project are original to this
 repository.

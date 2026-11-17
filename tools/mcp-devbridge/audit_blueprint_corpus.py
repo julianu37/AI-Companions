@@ -157,7 +157,7 @@ def print_compact(summary, records):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default=os.path.join(os.environ.get("TEMP", "."), "opencode",
+    parser.add_argument("--out", default=os.path.join(os.environ.get("TEMP", "."), "ai-companions",
                                                      "blueprint-audit.csv"))
     parser.add_argument("--json", action="store_true", help="print the whole report as JSON")
     parser.add_argument("--text", action="store_true", help="print the compact tables instead")

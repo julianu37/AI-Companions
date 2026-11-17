@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "valheim-devbridge": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["tools/mcp-devbridge/mcp_devbridge.py"],
+      "env": {
+        "DEVRIDGE_HOST": "127.0.0.1",
+        "DEVRIDGE_PORT": "47110"
+      }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "learn": {
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    }
+  }
+}

@@ -164,7 +164,7 @@ def main():
         print(first_page_instructions())
         return 1
 
-    tmp = tempfile.mkdtemp(prefix="opencode-wiki-")
+    tmp = tempfile.mkdtemp(prefix="ai-companions-wiki-")
     clone = os.path.join(tmp, "wiki")
     try:
         print("\nclonando %s (branch %s)..." % (WIKI_URL, args.branch))

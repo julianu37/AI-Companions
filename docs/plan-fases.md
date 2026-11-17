@@ -1,7 +1,7 @@
 # Plano das fases (2.13 → 2.18) — com mapa do Offline Companions Reborn
 
 Referência (MIT, uso livre): <https://github.com/MaddhattrRocks/Offline-Companions-Reborn>
-Checkout local (reference do OpenCode): `...\repos\github.com\MaddhattrRocks\Offline-Companions-Reborn`.
+Checkout local: `~/.local/share/valheim-refs/github.com/MaddhattrRocks/Offline-Companions-Reborn`.
 
 **Foco atual: single-player.** ZDO/multiplayer adiados (ver `docs/vision.md`).
 Regra: **reaproveitar lógica** da referência (com atribuição MIT), sempre confirmando APIs no

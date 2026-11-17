@@ -23,8 +23,8 @@ projetos de terceiros com licença permissiva. Leia as **regras de uso** no fim 
 ## Offline Companions Reborn (MIT)
 
 - Repositório: <https://github.com/MaddhattrRocks/Offline-Companions-Reborn>
-- Também está registrado como **reference do OpenCode** (`offline-companions`) em
-  `.opencode/opencode.jsonc` — os agentes podem lê-lo diretamente.
+- Checkout local para consulta: `~/.local/share/valheim-refs/github.com/MaddhattrRocks/Offline-Companions-Reborn`
+  (fora do repositório) — os agentes leem dali.
 - Fork de compatibilidade com o **Valheim 1.0** do mod "Offline Companions" (ProfMags).
 
 ### Onde olhar (`src/Companions/`)
@@ -101,7 +101,7 @@ O pacote do mod embute os binários das duas metades da voz. Todos são de licen
 | [remsky/Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) | Apache-2.0 | Alternativa **HTTP** (endpoint compatível com a OpenAI), mistura de vozes e streaming — só se o TTS sair do jogo |
 
 > O **mapa de `sid` vale para o export do sherpa**, não para a ordem alfabética do Hugging Face (a do HF tem 54
-> vozes; o mapa do sherpa v1_0 tem 53 — falta `em_santa`). A skill `.opencode/skills/kokoro/` consolida o catálogo,
+> vozes; o mapa do sherpa v1_0 tem 53 — falta `em_santa`). A skill `.claude/skills/kokoro/` consolida o catálogo,
 > a integração e as armadilhas.
 
 ## Clones locais para consulta (03/11/2026)
@@ -111,8 +111,8 @@ Para consultar o source sem depender da web (pedido do jogador), os dois repos d
 
 | repo | caminho local | conteúdo |
 |---|---|---|
-| `HardHeadHackerHead/valheim-mods` (**MIT**) | `C:\Users\revenda33\.local\share\opencode\repos\github.com\HardHeadHackerHead\valheim-mods` | 36 mods com source: **BuildOrders** (26 `.cs`, 431 KB) e **AICompanion** (48 `.cs`) |
-| `sirskunkalot/PlanBuild` (**WTFPL**) | `C:\Users\revenda33\.local\share\opencode\repos\github.com\sirskunkalot\PlanBuild` | 70 `.cs`: o formato `.blueprint`, o totem e o martelo de plano |
+| `HardHeadHackerHead/valheim-mods` (**MIT**) | `~/.local/share/valheim-refs/github.com/HardHeadHackerHead/valheim-mods` | 36 mods com source: **BuildOrders** (26 `.cs`, 431 KB) e **AICompanion** (48 `.cs`) |
+| `sirskunkalot/PlanBuild` (**WTFPL**) | `~/.local/share/valheim-refs/github.com/sirskunkalot/PlanBuild` | 70 `.cs`: o formato `.blueprint`, o totem e o martelo de plano |
 
 Atualizar: `git -C <pasta> pull --depth 1` (ou apagar e clonar de novo).
 

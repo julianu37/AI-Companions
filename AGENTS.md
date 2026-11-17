@@ -91,8 +91,8 @@ Valheim e não há de onde copiá-los depois.
   pura nova exige (a) criar o arquivo em `src/Companions/AI/`, (b) **linkar** no csproj do harness, (c) adicionar as
   asserções. Só o harness e o build **0/0** provam a mudança.
 - **`package/CONFIGURATION.md` é gerado** — nunca editar à mão; o `--check` acima é o gate.
-- **Jotunn NÃO é usado** (0 usos no código, sem `[BepInDependency]`, sem referência no csproj). A skill `jotunn` fica
-  no repo só como referência de framework; não listar Jotunn como requisito em release/README.
+- **Jotunn NÃO é usado** (0 usos no código, sem `[BepInDependency]`, sem referência no csproj) e **não há skill dele**
+  no harness; não listar Jotunn como requisito em release/README.
 - **Preservados de propósito** (jogo, saves e rede dependem): o **GUID** `Maddhattr.OfflineCompanionsReborn`, o
   `Companions.dll`, o `Companions.csproj` e as chaves `HC_*`. O nome do mod é **AI Companions**.
 - **O `.cfg` é `BepInEx\config\AiCompanions.cfg`** (desde 1.8.3 — o GUID não dá mais nome a ele).
@@ -170,20 +170,20 @@ sherpa-onnx) rodam **locais, no processo**.
 
 ## Equipe de agentes e skills
 
-18 agentes em `.opencode/agents/` (orquestrador: **`ai-companions-architect`**; especialistas: `valheim-specialist`,
-`valheim-reverse-engineer`, `csharp-engineer`, `ai-npc-developer`, `ai-integration`, `llm-backend-dev`,
-`harmony-patcher`, `valheim-netcode-dev`, `valheim-qa-engineer`, `valheim-mod-reviewer`, `multilanguage-verifier`,
-`repo-wiki-publisher`, `valheim-docs-writer`, `valheim-mod-architect`, `valheim-asset-dev`, `valheim-mod-recon`,
-`jotunn-developer` *(não usado)*). `experimental.subagent_depth = 2` em `.opencode/opencode.jsonc`.
+O harness é **Claude Code nativo**, sem camada de orquestração própria. **10 subagentes** de projeto em
+`.claude/agents/`: `valheim-csharp` (implementa), `valheim-re` (decompila e prova assinatura), `valheim-harmony`,
+`valheim-netcode`, `valheim-ai-brain` (contrato/intents/LLM/voz), `valheim-qa` (evidência PASS/FAIL),
+`valheim-reviewer` (somente leitura), `valheim-i18n`, `valheim-devbridge-runner` (o run em jogo) e `valheim-docs`.
+Todos rodam no **mesmo modelo** configurado no LiteLLM local. Delegação é decisão de custo, não uma cadeia fixa: agente
+vale a pena quando o trabalho é independente/paralelo ou exige leitura de muitos arquivos.
 
-9 skills em `.opencode/skills/`: `bepinex`, `jotunn`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`,
-`valheim-assets`, `valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`.
-**Carregue a skill da área antes de codar ou revisar.**
+**8 skills** em `.claude/skills/`: `bepinex`, `kokoro`, `valheim-ai-backend`, `valheim-ai-orders`, `valheim-assets`,
+`valheim-devbridge`, `valheim-mod-research`, `valheim-reverse-engineering`. **Carregue a skill da área antes de codar ou
+revisar.** Jotunn não é usado (0 referências no código) — não há skill dele.
 
-Permissões são por caminho (primeira barreira); a segunda é o `git status --porcelain` + `git diff --stat` do arquiteto
-**antes de commitar** — nunca auto-relato, a delegação aninhada edita via subagente. O diff do harness **só adiciona**
-asserção. Nenhum agente pode `--force`. O arquiteto **serializa** as execuções do harness (duas ao mesmo tempo
-disputam `obj/bin`).
+A barreira de commit é o `git status --porcelain` + `git diff --stat` **antes de commitar** — nunca auto-relato. O diff
+do harness **só adiciona** asserção. Nenhum comando com `--force` (negado no `.claude/settings.json`). O harness roda
+**serializado** (duas execuções ao mesmo tempo disputam `obj/bin`).
 
 ## Construção autônoma (a frente mais ativa)
 

@@ -49,22 +49,27 @@ agente ⇄ MCP/stdio ⇄ tools/mcp-devbridge/mcp_devbridge.py ⇄ TCP 127.0.0.1:
    $c.Close()
    ```
 
-## Como conectar o agente (OpenCode)
+## Como conectar o agente (Claude Code)
+
+Já registrado no **`.mcp.json` da raiz do repositório** (o caminho é relativo à raiz, então não há caminho absoluto a
+manter):
 
 ```json
 {
-  "mcp": {
+  "mcpServers": {
     "valheim-devbridge": {
-      "type": "local",
-      "command": ["python", "C:\\Users\\revenda33\\Desktop\\ValheinCompanions\\tools\\mcp-devbridge\\mcp_devbridge.py"],
-      "enabled": true
+      "type": "stdio",
+      "command": "python",
+      "args": ["tools/mcp-devbridge/mcp_devbridge.py"],
+      "env": { "DEVRIDGE_HOST": "127.0.0.1", "DEVRIDGE_PORT": "47110" }
     }
   }
 }
 ```
 
 Variáveis de ambiente: `DEVRIDGE_HOST` (`127.0.0.1`), `DEVRIDGE_PORT` (`47110`), `DEVRIDGE_TOKEN` (vazio),
-`DEVRIDGE_LOG` (padrão `<Valheim>\BepInEx\LogOutput.log`).
+`DEVRIDGE_LOG` (padrão `<Valheim>\BepInEx\LogOutput.log`). O `.mcp.json` pede aprovação do servidor na primeira
+sessão; para usar em outro projeto, copie esse bloco.
 
 ## Protocolo
 
