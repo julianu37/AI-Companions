@@ -155,6 +155,21 @@ internal static class MHR_Build
 	/// (<see cref="MHR_BuildGroup.ClaimPoses"/>) - what a candidate keeps away from. ONE list reused.</summary>
 	private static readonly List<Vector3> s_spreadClaims = new List<Vector3>();
 
+	/// <summary>16/11/2026 (backlog 11g): how far around the body a resumed order re-checks the pieces it believes are
+	/// standing. Two body windows (<see cref="BuildSpread.SpreadDistance"/>), the same distance the spread already uses for
+	/// "far enough not to step on each other" - the measured orphan slab fell 6,8 m from the body, inside this radius.</summary>
+	private const float ResumeCheckRadius = BuildSpread.SpreadDistance * 2f;
+
+	/// <summary>16/11/2026 (backlog 11g): the plan poses of the resumed order, one per index - what
+	/// <see cref="BuildResumeCheck"/> compares the scene against. ONE list reused.</summary>
+	private static readonly List<Vector3> s_resumePoses = new List<Vector3>();
+
+	/// <summary>16/11/2026 (backlog 11g): the poses of the pieces the scene actually has around the body.</summary>
+	private static readonly List<Vector3> s_resumeStanding = new List<Vector3>();
+
+	/// <summary>16/11/2026 (backlog 11g): the scratch piece list of the scene sweep (kept, so a resume allocates none).</summary>
+	private static readonly List<Piece> s_resumePieces = new List<Piece>();
+
 	/// <summary>P1 (04/11/2026, the deck run of the 985-piece house: 16 pieces - floors and roofs of the east gable and of the
 	/// north-west corner, 40,8 to 46,8 - left out with <c>no_support</c>): the author's blueprint has <b>no support piece under
 	/// them</b> (his house leaned on something the file does not carry), so the direct-support pull answers -1 and the piece can
@@ -8544,7 +8559,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 	/// <see cref="State.Index"/> is the walk's own position. Both are only touched when there is something to restore - a
 	/// pending with no sets (a single piece, a template) keeps the resume behaviour of before, byte for byte.</para>
 	/// </summary>
-	private static void RestoreProgress(State fresh, Pending pending)
+	private static void RestoreProgress(CompanionAI ai, State fresh, Pending pending)
 	{
 		// BLUEPRINT ONLY: a resumed blueprint reuses the pending's EXACT plan (StartBlueprint's `storedPlan`), so a saved index
 		// names the same piece it named before the interruption. A template rebuilds its plan on every resume (StartPlan ->
@@ -8567,6 +8582,69 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		// 16/11/2026: the same reason the progress travels - a fresh state would read the house's size off a plan that the
 		// retry pass already grew, and close as `incomplete` with every piece standing
 		fresh.PlanTotal = BuildPlanTotal.Of(pending.PlanTotal, planCount);
+		// 16/11/2026 (backlog 11g, the measured slab #692): the saved set says a piece was placed; the scene is what
+		// proves it. One sweep of the game's own piece list around the body - no per-piece ghost test.
+		RecheckStanding(ai, fresh, pending);
+	}
+
+	/// <summary>
+	/// 16/11/2026 (backlog item 11g): <b>a piece the resumed order believes is standing, but the scene does not have, goes
+	/// back to the queue</b> - and is placed again. The saved <c>PlacedIndices</c> is an intention: the world can take a
+	/// piece back (the measured case is a fall right after the placement, then a death).
+	///
+	/// <para>Cheap on purpose (the player's decision, 17/11/2026): ONE <c>Piece.GetAllPiecesInRadius</c> around the body,
+	/// never 985 ghost tests. What the sweep does not find inside <see cref="ResumeCheckRadius"/> is queued for a new
+	/// attempt; everything outside the radius keeps the treatment of before. The rule itself is pure
+	/// (<see cref="BuildResumeCheck"/>, harness section (av)); this side is the Unity calls.</para>
+	///
+	/// <para><b>Fail-open:</b> without a scene, without a plan, or with an empty sweep, nothing is removed - the resume
+	/// behaves exactly as it did before this rule existed.</para>
+	/// </summary>
+	private static void RecheckStanding(CompanionAI ai, State fresh, Pending pending)
+	{
+		if (fresh == null || fresh.Plan == null || fresh.Plan.Count == 0 || fresh.PlacedIndices.Count == 0
+			|| ZNetScene.instance == null)
+		{
+			return;
+		}
+		s_resumePoses.Clear();
+		for (int i = 0; i < fresh.Plan.Count; i++)
+		{
+			s_resumePoses.Add(fresh.Plan[i] != null ? fresh.Plan[i].Pos : new Vector3(float.NaN, 0f, 0f));
+		}
+		var suspects = new HashSet<int>();
+		BuildResumeCheck.Suspects(fresh.PlacedIndices, s_resumePoses, fresh.Anchor, ResumeCheckRadius, suspects);
+		if (suspects.Count == 0)
+		{
+			return;
+		}
+		s_resumePieces.Clear();
+		s_resumeStanding.Clear();
+		Piece.GetAllPiecesInRadius(fresh.Anchor, ResumeCheckRadius, s_resumePieces);
+		foreach (Piece piece in s_resumePieces)
+		{
+			if (piece != null)
+			{
+				s_resumeStanding.Add(piece.transform.position);
+			}
+		}
+		var missing = new HashSet<int>();
+		BuildResumeCheck.Missing(suspects, s_resumePoses, s_resumeStanding, missing);
+		if (missing.Count == 0)
+		{
+			return;
+		}
+		int planned = BuildPlanTotal.Of(fresh.PlanTotal, fresh.Plan.Count);
+		foreach (int index in missing)
+		{
+			fresh.PlacedIndices.Remove(index);
+			if (fresh.Retry != null && index >= 0 && index < fresh.Plan.Count && fresh.Plan[index] != null)
+			{
+				fresh.Retry.Add(fresh.Plan[index]);
+			}
+			Log(ai, "retomada: a peça " + (index + 1) + "/" + planned + " não está de pé - volta para a fila");
+		}
+		fresh.PlacedTotal = Mathf.Max(0, fresh.PlacedTotal - missing.Count);
 	}
 
 	/// <summary>E6b: undoes the Follow that <see cref="HandOver"/> turned off. Only when it is still off (you may have
@@ -8932,7 +9010,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 					fresh.Passes = pending.Passes;
 					// 15/11/2026: what the walk had already settled travels back with the plan (a resumed order that starts
 					// with empty sets re-walks every piece of the house it already built)
-					RestoreProgress(fresh, pending);
+					RestoreProgress(ai, fresh, pending);
 					// P1 (multi-build): the body that came back goes to its site again (its piece may be another's now -
 					// RejoinGroup claims again and moves on when it is taken or already built)
 					RejoinGroup(ai, fresh, pending.Group);
@@ -9096,7 +9174,7 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 			{
 				// 15/11/2026: the gather owned the body for minutes and the order resumes - the pieces that went up before it
 				// must not be walked to again
-				RestoreProgress(fresh, pending);
+				RestoreProgress(ai, fresh, pending);
 				RejoinGroup(ai, fresh, pending.Group);
 			}
 			Log(ai, "materials ready - resuming the build");
