@@ -105,6 +105,47 @@ internal static class BuildResumeCheck
 		return added;
 	}
 
+	/// <summary>
+	/// 16/11/2026 (measured false positive, 22 of 22): <b>the heights a sweep has to cover</b>. The predicate of
+	/// <see cref="Suspects"/> is XZ, but <c>Piece.GetAllPiecesInRadius</c> is a <b>sphere</b> - on the measured house (10 m
+	/// tall) 132 of the 235 pieces inside the radius horizontally were outside the sphere, so the sweep did not see them
+	/// and every one of them looked missing. This answers the centres of the slices that do cover them, the same way
+	/// <c>build.delete</c> sweeps a tall build by floors of <c>y</c>.
+	///
+	/// <para>Fills <paramref name="into"/> with one centre per slice of height <paramref name="height"/>, from the anchor's
+	/// own height up to the top of the plan's poses inside <paramref name="radius"/> (XZ) of it. Returns how many it
+	/// added; a radius or a slice height of zero or less, or a broken anchor, adds <b>nothing</b> (the caller then does
+	/// nothing, which is the fail-open behaviour).</para>
+	/// </summary>
+	internal static int SliceCenters(IList<Vector3> poses, Vector3 anchor, float radius, float height, IList<Vector3> into)
+	{
+		if (poses == null || into == null || !Finite(anchor))
+		{
+			return 0;
+		}
+		float limit = Finite(radius) && radius > 0f ? radius : 0f;
+		float step = Finite(height) && height > 0f ? height : 0f;
+		if (limit <= 0f || step <= 0f)
+		{
+			return 0;
+		}
+		float top = anchor.y;
+		for (int i = 0; i < poses.Count; i++)
+		{
+			if (Finite(poses[i]) && Flat(poses[i], anchor) <= limit && poses[i].y > top)
+			{
+				top = poses[i].y;
+			}
+		}
+		int added = 0;
+		for (float y = anchor.y; y <= top + step; y += step)
+		{
+			into.Add(new Vector3(anchor.x, y, anchor.z));
+			added++;
+		}
+		return added;
+	}
+
 	/// <summary>Horizontal distance (XZ) between two points - the same rule (and the same guard) as
 	/// <see cref="BuildSpread"/>. A point that is not a real number answers the largest float, so it never looks near.</summary>
 	private static float Flat(Vector3 a, Vector3 b)

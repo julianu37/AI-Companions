@@ -170,6 +170,10 @@ internal static class MHR_Build
 	/// <summary>16/11/2026 (backlog 11g): the scratch piece list of the scene sweep (kept, so a resume allocates none).</summary>
 	private static readonly List<Piece> s_resumePieces = new List<Piece>();
 
+	/// <summary>16/11/2026 (backlog 11g): the centres of the height slices the sweep covers (see
+	/// <see cref="BuildResumeCheck.SliceCenters"/>) - one sphere per slice, the way <c>build.delete</c> sweeps a tall build.</summary>
+	private static readonly List<Vector3> s_resumeSlices = new List<Vector3>();
+
 	/// <summary>P1 (04/11/2026, the deck run of the 985-piece house: 16 pieces - floors and roofs of the east gable and of the
 	/// north-west corner, 40,8 to 46,8 - left out with <c>no_support</c>): the author's blueprint has <b>no support piece under
 	/// them</b> (his house leaned on something the file does not carry), so the direct-support pull answers -1 and the piece can
@@ -8618,14 +8622,22 @@ BuildResult result = BuildExecutor.Place(cs, state.Piece, state.Pos, state.Rot);
 		{
 			return;
 		}
-		s_resumePieces.Clear();
+		// 16/11/2026 (measured false positive, 22 of 22): the sweep is a SPHERE and the predicate is XZ - on a 10 m house
+		// 132 of the 235 pieces inside the radius horizontally were outside the sphere, so they looked missing. Sweep
+		// the same way build.delete sweeps a tall build: one sphere per slice of height, so the whole column is covered.
 		s_resumeStanding.Clear();
-		Piece.GetAllPiecesInRadius(fresh.Anchor, ResumeCheckRadius, s_resumePieces);
-		foreach (Piece piece in s_resumePieces)
+		s_resumeSlices.Clear();
+		BuildResumeCheck.SliceCenters(s_resumePoses, fresh.Anchor, ResumeCheckRadius, ResumeCheckRadius, s_resumeSlices);
+		foreach (Vector3 center in s_resumeSlices)
 		{
-			if (piece != null)
+			s_resumePieces.Clear();
+			Piece.GetAllPiecesInRadius(center, ResumeCheckRadius, s_resumePieces);
+			foreach (Piece piece in s_resumePieces)
 			{
-				s_resumeStanding.Add(piece.transform.position);
+				if (piece != null)
+				{
+					s_resumeStanding.Add(piece.transform.position);
+				}
 			}
 		}
 		var missing = new HashSet<int>();

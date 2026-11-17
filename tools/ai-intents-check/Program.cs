@@ -2314,6 +2314,30 @@ internal static class Program
 		var nan = new UnityEngine.Vector3(float.NaN, 40f, 0f);
 		BuildResumeCheck.Suspects(new[] { 0 }, new List<UnityEngine.Vector3> { nan }, UnityEngine.Vector3.zero, 6f, suspects);
 		Check("pose NaN do plano nunca e suspeita", suspects.Count == 0, "suspeitos " + suspects.Count);
+
+		// 7) 16/11/2026, THE MEASURED FALSE POSITIVE (22 of 22): the sweep is 3D and the predicate is XZ, so a piece on
+		//    the upper storey of a 10 m house is inside the radius horizontally and outside the sphere. The slices say
+		//    which heights the sweep has to cover; here the plan spans 10 m above the anchor, so two slices of 6 m.
+		var tall = new List<UnityEngine.Vector3>
+		{
+			new UnityEngine.Vector3(0f, 40f, 0f),     // ground storey
+			new UnityEngine.Vector3(0f, 49f, 0f),     // top of the house, same XZ, 9 m up
+		};
+		suspects.Clear();
+		BuildResumeCheck.Suspects(new[] { 0, 1 }, tall, new UnityEngine.Vector3(0f, 40f, 0f), 6f, suspects);
+		Check("as duas pecas no mesmo XZ sao suspeitas (o predicado e XZ)",
+			suspects.SetEquals(new[] { 0, 1 }), "suspeitos " + string.Join(",", suspects));
+		var slices = new List<UnityEngine.Vector3>();
+		int count = BuildResumeCheck.SliceCenters(tall, new UnityEngine.Vector3(0f, 40f, 0f), 6f, 6f, slices);
+		bool covers = false;
+		foreach (UnityEngine.Vector3 center in slices)
+		{
+			covers |= center.y >= 49f - 6f && center.y <= 49f;
+		}
+		Check("as fatias cobrem a peca do andar de cima (a esfera unica nao cobria)",
+			count >= 2 && covers, "fatias " + count + " em " + string.Join(",", slices));
+		Check("fatia de raio 0 devolve nada (fail-open)",
+			BuildResumeCheck.SliceCenters(tall, UnityEngine.Vector3.zero, 0f, 6f, slices) == 0, "fatias " + slices.Count);
 	}
 
 	/// <summary>Section (av): a plan of pieces on y = 40, one every <paramref name="xs"/> metres (the metric is XZ).</summary>
