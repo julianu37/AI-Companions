@@ -426,7 +426,7 @@ pura `AI/BuildPlanTotal.cs` (`Of` e `Complete`) decide, e o `Finish` passa a ler
 da lista. Os dois lados da regra do jogador continuam valendo, e o harness fixa os dois: **985 de 985 fecha como
 completa** e **984 de 985 continua incompleta**.
 
-### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **parcial: (b) fechado, (a)/(c)/(d) abertos**
+### 11g. O buraco de uma laje com a obra fechando e o `planned` em 999 — **(a) e (b) fechados, (c) parcial, (d) aberto**
 
 A run seguinte (DLL 18:34, `run-final-1120`) expôs que o 11f **não se confirmou em jogo**. Duas medições, ambas
 independentes do log:
@@ -466,6 +466,36 @@ número igual ao da reconciliação.
 **(a) continua aberto:** a peça órfã da laje `#692` não foi investigada neste ciclo — o run de confirmação não a
 reproduziu, e "não reproduziu" não é "corrigido". Um resume ainda herda `PlacedIndices` sem conferir a cena.
 **(c) e (d) continuam abertos:** o reconcile só rodou no fim, como aceite, não durante o run.
+
+**Estado em 17/11/2026 (o arco `fix/resume-orphan-piece`):** **(a) e (c) fechados e medidos; (d) continua aberto com
+o motivo abaixo.**
+
+**(a)** `AI/BuildResumeCheck.cs` (puro, seção (av) do harness) + `MHR_Build.RecheckStanding`, chamado do
+`RestoreProgress` — o ponto único das duas retomadas. A retomada varre as peças em volta do corpo e o que não estiver
+na cena volta para a fila. Medido no run de 17/11 com morte forçada: **2 peças devolvidas, as duas repostas**, cena
+final **985/985**, `hc_ai_blueprint_done`, reconcile **exit 0** (983 casadas, 2 explicadas, 0 sem explicação).
+**Duas correções nasceram de medição, não de leitura:**
+1. A primeira versão media XZ no predicado e varria uma **esfera 3D** — na casa de 10 m, **132 de 235** peças dentro
+   do raio horizontal ficavam fora da esfera. Resultado: **22 devolvidas, 22 falsas** (todas voltaram como "já está de
+   pé"). O fix (`BuildResumeCheck.SliceCenters`) varre **uma esfera por fatia de altura**, o mesmo jeito que o
+   `build.delete` varre obra alta por fatias de `y`. Run seguinte: **0 falsos positivos**.
+2. O raio é **6 m** (duas janelas de corpo, `BuildSpread.SpreadDistance × 2`), decisão do jogador em 17/11: confere o
+   que está perto do corpo, não a casa inteira — 985 ghost tests numa retomada seriam uma pausa sentida.
+
+**(c)** `run_watch.py` ganhou `gap_alarm`: compara o contador do mod com a cena a cada amostra. O alarme exige **3
+amostras seguidas** contando a mesma história (o sinal do gap decide), porque num run saudável o mesmo desvio nunca
+passou de **2 amostras** (medido: +3, +4, +7 uma vez cada — a peça existe antes da linha `done:`), enquanto o buraco de
+16/11 manteve `-1` por **20**.
+**O que ele NÃO faz:** não é o reconciliador durante o run (o item pedia "o reconcile roda dentro do ciclo"). Ele
+acusa **divergência de contador**, que é o que pegou o caso de 16/11; nomear prefab e posição da órfã durante o run
+continua não implementado.
+
+**(d) continua aberto, e agora com o motivo certo:** *a ordem cancelada pelo jogador ("para") **não escreve número de
+fechamento nenhum*** — `MHR_Build.Cancel` remove o estado sem passar pelo `Finish` (verificado: o run curto tem
+`order ended` vazio). Logo "a run fecha com o número igual ao da reconciliação" **não é provável num run curto**. O que
+dá para medir, e foi medido: no run interrompido em 143 peças, **143 linhas `done:` = 143 peças na cena = 985 − 842
+faltantes sem explicação** do reconcile (exit 0). Fechar o item exige decisão de produto — o "para" deve falar/imprimir
+o número? —, e essa é do jogador.
 
 ### 12. ~~O run **grátis** da `CommHomeBasicBP`~~ — **medido 12/11/2026**
 O ciclo `fix/plano-remap` fechou os oito defeitos de código do `MHR_Build` (remapeamento do plano, "já está de pé"
