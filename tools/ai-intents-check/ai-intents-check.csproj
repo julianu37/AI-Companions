@@ -111,6 +111,7 @@
     <Compile Include="..\..\src\Companions\AI\BuildStoreyGate.cs" Link="src/AI/BuildStoreyGate.cs" />
     <Compile Include="..\..\src\Companions\AI\BuildProgress.cs" Link="src/AI/BuildProgress.cs" />
     <Compile Include="..\..\src\Companions\AI\BuildResumeCheck.cs" Link="src/AI/BuildResumeCheck.cs" />
+    <Compile Include="..\..\src\Companions\AI\BuildRetryKey.cs" Link="src/AI/BuildRetryKey.cs" />
     <Compile Include="..\..\src\Companions\AI\BuildAdjustPose.cs" Link="src/AI/BuildAdjustPose.cs" />
     <Compile Include="..\..\src\Companions\AI\BuildPlanTotal.cs" Link="src/AI/BuildPlanTotal.cs" />
     <!-- 15/11/2026: the caged companion leaves the place (never the player, counted, max 3 per order) -->

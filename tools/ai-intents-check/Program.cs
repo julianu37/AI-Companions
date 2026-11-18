@@ -149,6 +149,7 @@ internal static class Program
 		new SectionDef("at", "BuildProgress - a obra retomada nao recaminha o que ja esta de pe", ResumeProgress),
 		new SectionDef("au", "BuildAdjustPose - o ajuste move a peca de lado, nunca de andar", AdjustPoseStorey),
 		new SectionDef("av", "BuildResumeCheck - a peca que sumiu volta para a fila na retomada", ResumeOrphan),
+		new SectionDef("aw", "RetryKey - a peca ajustada mantem a identidade entre as tentativas", RetryIdentity),
 		new SectionDef("ae", "o log das redes ficou calado - nenhuma regra engoliu excecao", QuietLog)
 	};
 
@@ -2360,6 +2361,37 @@ internal static class Program
 		BuildResumeCheck.Missing(new[] { 0 }, poses, nudged, 5f, missing);
 		Check("peca que o ajuste moveu 4,5 m nao e dada como faltando (tolerancia do nudge)",
 			tightSaysMissing && missing.Count == 0, "faltando " + missing.Count);
+	}
+
+	/// <summary>
+	/// Section (aw) - <c>RetryKey</c>: <b>a piece whose pose was adjusted keeps its identity between attempts</b>.
+	/// The measured case (17/11/2026, the bungalow blueprint): 8.046 <c>retry later: piece_chest_wood ... 1/3</c> lines for
+	/// the same chest and the counter never reached 3, because <c>NudgePiece</c> moves <c>State.Pos</c> and the old identity
+	/// test compared the plan pose with the working pose - it failed, a fresh step object was made every attempt, and the
+	/// attempts restarted at 1 forever.
+	/// </summary>
+	private static void RetryIdentity()
+	{
+		var planPose = new UnityEngine.Vector3(10f, 40f, 5f);
+		var working = new UnityEngine.Vector3(13f, 40f, 7f);   // nudged 3,6 m away (furniture: up to 5 m)
+
+		// 1) the index is the identity even when the pose moved
+		Check("a peca ajustada continua sendo a mesma (o indice manda, nao a pose)",
+			BuildRetryKey.Same(3, 3, planPose, working, 0), "3 == 3 com poses diferentes");
+
+		// 2) a different index is a different piece, whatever the pose says
+		Check("indice diferente e outra peca, mesmo com a pose igual",
+			!BuildRetryKey.Same(3, 4, planPose, planPose, 0), "3 != 4 com poses iguais");
+
+		// 3) the loose case: no plan index (a single piece, a template) - the pose is all there is
+		Check("sem indice de plano a pose decide (peca avulsa)",
+			BuildRetryKey.Same(-1, -1, planPose, planPose, 0) && !BuildRetryKey.Same(-1, -1, planPose, working, 3f),
+			"pose igual casa, pose 3,6 m fora nao");
+
+		// 4) an index that only one side has is never the same piece (the plan was remapped)
+		Check("indice presente de um lado so nunca casa",
+			!BuildRetryKey.Same(3, -1, planPose, planPose, 0) && !BuildRetryKey.Same(-1, 3, planPose, planPose, 0),
+			"3 vs -1");
 	}
 
 	/// <summary>Section (av): a plan of pieces on y = 40, one every <paramref name="xs"/> metres (the metric is XZ).</summary>

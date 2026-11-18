@@ -992,8 +992,15 @@ internal static class MHR_Build
 	/// list finds the same piece again instead of growing a copy per pass.</summary>
 	private static bool SamePiece(PlannedStep step, State state)
 	{
-		return step != null && state != null && step.Prefab == state.Prefab
-			&& (step.Pos - state.Pos).sqrMagnitude < 0.0001f;
+		// 17/11/2026 (the bungalow run: 8.046 "retry later ... 1/3" for the same chest): the identity is the PLAN INDEX, not
+		// the pose - `NudgePiece` moves `State.Pos`/`State.Rot` (up to 5 m for furniture) and never the plan's step, so
+		// comparing poses made a fresh step object every attempt and the 3-attempt cap was never reached.
+		if (step == null || state == null || step.Prefab != state.Prefab)
+		{
+			return false;
+		}
+		int planIndex = state.Plan != null ? state.Plan.IndexOf(step) : -1;
+		return BuildRetryKey.Same(planIndex, state.Index, step.Pos, state.Pos, 0f);
 	}
 
 	/// <summary>P1 (04/11/2026, "contadores honestos"): the plan index a piece is counted by. For a site it is the plan's index
